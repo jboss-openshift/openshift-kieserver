@@ -30,13 +30,13 @@
         <version>15</version>
     </parent>
 
-    <groupId>org.openshift.kie</groupId>
-    <artifactId>openshift-kie-parent</artifactId>
+    <groupId>org.openshift.kieserver</groupId>
+    <artifactId>openshift-kieserver-parent</artifactId>
     <version>1.0.0.Final</version>
     <packaging>pom</packaging>
 
-    <name>OpenShift KIE - Parent</name>
-    <description>Openshift KIE - Parent</description>
+    <name>OpenShift KIE Server- Parent</name>
+    <description>Openshift KIE Server- Parent</description>
 
     <licenses>
         <license>
