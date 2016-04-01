@@ -25,9 +25,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.jboss</groupId>
-        <artifactId>jboss-parent</artifactId>
-        <version>15</version>
+        <groupId>org.kie</groupId>
+        <artifactId>kie-parent-with-dependencies</artifactId>
+        <!--
+        <version>6.3.0.Final</version>
+        -->
+        <version>6.4.0.Final</version>
     </parent>
 
     <groupId>org.openshift.kieserver</groupId>
@@ -35,8 +38,8 @@
     <version>1.0.0.Final</version>
     <packaging>pom</packaging>
 
-    <name>OpenShift KIE Server- Parent</name>
-    <description>Openshift KIE Server- Parent</description>
+    <name>OpenShift KIE Server - Parent</name>
+    <description>OpenShift KIE Server - Parent</description>
 
     <licenses>
         <license>
@@ -47,15 +50,18 @@
     </licenses>
 
     <modules>
+        <module>common</module>
+        <module>web</module>
+        <module>jms</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.11</version>
-                <scope>test</scope>
+                <groupId>org.openshift.kieserver</groupId>
+                <artifactId>openshift-kieserver-common</artifactId>
+                <scope>provided</scope>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
