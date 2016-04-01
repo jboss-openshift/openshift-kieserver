@@ -1,2 +1,2 @@
-# openshift-kie
-KIE extensions for OpenShift
+# openshift-kieserver
+KIE Server extensions for OpenShift
