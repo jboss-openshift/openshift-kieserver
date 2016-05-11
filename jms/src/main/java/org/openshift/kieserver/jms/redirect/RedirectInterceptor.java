@@ -15,8 +15,6 @@
  */
 package org.openshift.kieserver.jms.redirect;
 
-import static java.util.logging.Level.FINE;
-import static java.util.logging.Level.WARNING;
 import static org.kie.server.api.jms.JMSConstants.CONTAINER_ID_PROPERTY_NAME;
 import static org.kie.server.api.jms.JMSConstants.SERIALIZATION_FORMAT_PROPERTY_NAME;
 import static org.kie.server.api.marshalling.MarshallingFormat.JAXB;
@@ -32,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 import javax.interceptor.AroundInvoke;
 import javax.interceptor.InvocationContext;
@@ -61,10 +58,12 @@ import org.kie.server.services.jbpm.ProcessServiceBase;
 import org.kie.server.services.jbpm.UserTaskServiceBase;
 import org.openshift.kieserver.common.id.ConversationId;
 import org.openshift.kieserver.common.server.ServerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RedirectInterceptor {
 
-    private static final Logger LOGGER = Logger.getLogger(RedirectInterceptor.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedirectInterceptor.class);
 
     private static final String ON_MESSAGE = "onMessage";
     private static final String ID_NECESSARY = "This id is needed to be able to match a request to a response message.";
@@ -79,7 +78,7 @@ public class RedirectInterceptor {
                 field.setAccessible(true);
                 conversationIdPropertyName = (String)field.get(null);
             } catch (Throwable t) {
-                LOGGER.log(WARNING, t.getMessage(), t);
+                LOGGER.warn(t.getMessage());
             }
         }
         if (conversationIdPropertyName == null) {
@@ -162,9 +161,9 @@ public class RedirectInterceptor {
                     }
                 }
                 if (redirectContainerId != null) {
-                    if (LOGGER.isLoggable(FINE)) {
+                    if (LOGGER.isDebugEnabled()) {
                         String log = String.format("%s redirecting: %s -> %s", ON_MESSAGE, requestedContainerId, redirectContainerId);
-                        LOGGER.log(FINE, log);
+                        LOGGER.debug(log);
                     }
                     // properties are read-only unless you clear them first
                     Map<String,Object> properties = new HashMap<String,Object>();

@@ -35,7 +35,7 @@
 
     <groupId>org.openshift.kieserver</groupId>
     <artifactId>openshift-kieserver-parent</artifactId>
-    <version>1.0.0.Final</version>
+    <version>1.0.1.Final</version>
     <packaging>pom</packaging>
 
     <name>OpenShift KIE Server - Parent</name>
@@ -54,6 +54,19 @@
         <module>web</module>
         <module>jms</module>
     </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
 
     <dependencyManagement>
         <dependencies>

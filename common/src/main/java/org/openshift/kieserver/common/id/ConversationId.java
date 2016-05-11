@@ -15,21 +15,20 @@
  */
 package org.openshift.kieserver.common.id;
 
-import static java.util.logging.Level.WARNING;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.logging.Logger;
 
 import org.kie.server.api.KieServerConstants;
 import org.kie.server.api.KieServerEnvironment;
 import org.kie.server.api.Version;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // org.kie.server.api.ConversationId exists in 6.4+
 public final class ConversationId {
 
-    private static final Logger LOGGER = Logger.getLogger(ConversationId.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConversationId.class);
 
     // org.kie.server.api.KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER exists in 6.4+
     public static final String KIE_CONVERSATION_ID_TYPE_HEADER;
@@ -52,7 +51,7 @@ public final class ConversationId {
                 getContainerId = clazz.getDeclaredMethod("getContainerId");
                 getContainerId.setAccessible(true);
             } catch (Throwable t) {
-                LOGGER.log(WARNING, t.getMessage());
+                LOGGER.warn(t.getMessage());
             }
         }
         if (kieConversationIdTypeHeader == null) {

@@ -15,12 +15,10 @@
  */
 package org.openshift.kieserver.web.redirect;
 
-import static java.util.logging.Level.FINE;
 import static org.openshift.kieserver.common.server.ServerUtil.CAPABILITY_BPM;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Logger;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -33,10 +31,12 @@ import javax.servlet.http.HttpServletRequest;
 import org.jbpm.services.api.RuntimeDataService;
 import org.openshift.kieserver.common.server.ServerConfig;
 import org.openshift.kieserver.common.server.ServerUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RedirectFilter implements Filter {
 
-    private static final Logger LOGGER = Logger.getLogger(RedirectFilter.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedirectFilter.class);
 
     private ServerConfig serverConfig = null;
     private boolean containerRedirectEnabled = false;
@@ -84,10 +84,10 @@ public class RedirectFilter implements Filter {
             }
         }
         if (redirect != null) {
-            if (LOGGER.isLoggable(FINE)) {
+            if (LOGGER.isDebugEnabled()) {
                 HttpServletRequest httpRequest = (HttpServletRequest)request;
                 String log = String.format("doFilter redirecting: %s%s -> %s", httpRequest.getServletPath(), httpRequest.getPathInfo(), redirect);
-                LOGGER.log(FINE, log);
+                LOGGER.debug(log);
             }
             request.getRequestDispatcher(redirect).forward(request, response);
         } else {

@@ -19,9 +19,12 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.openshift.kieserver.web.security.SecurityData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TestSecurityData implements SecurityData {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestSecurityData.class);
 
     private final String path;
     private final String method;
@@ -52,14 +55,12 @@ public class TestSecurityData implements SecurityData {
 
     @Override
     public void log(String msg) {
-        System.out.println(msg);
-        System.out.flush();
+        LOGGER.info(msg);
     }
 
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        System.err.println("[" + sc + "] " + msg);
-        System.err.flush();
+        LOGGER.error("[" + sc + "] " + msg);
     }
 
 }
