@@ -25,16 +25,18 @@ import java.io.File;
 import java.io.PrintStream;
 
 import org.junit.Test;
+import org.openshift.kieserver.common.coder.Coder;
 import org.openshift.kieserver.common.coder.SumCoder.MD5;
 
 public class ServerConfigTest {
 
     private static final String KIE_SERVER_REPO = "repo";
     private static final String KIE_SERVER_ID = "id";
-    private static final String KIE_SERVER_STATE_FILE = new File("repo" + File.separator + "id.xml").getPath();
+    private static final String KIE_SERVER_STATE_FILE = new File(KIE_SERVER_REPO + File.separator + KIE_SERVER_ID + ".xml").getPath();
     private static final String KIE_CONTAINER_DEPLOYMENT = "c1=g1:a1:v1|c2=g2:a2:v2|c2=g2:a2:v2.1";
-    private static final String ENCODED_DEPLOYMENT_ID_C2_V21 = "c2_" + new MD5().encode("c2=g2:a2:v2.1");
-    private static final String ENCODED_DEPLOYMENT_ID_C2_V2 = "c2_" + new MD5().encode("c2=g2:a2:v2");
+    private static final Coder CODER = new MD5();
+    private static final String DEPLOYMENT_ID_C2_V21 = CODER.encode("c2=g2:a2:v2.1");
+    private static final String DEPLOYMENT_ID_C2_V2 = CODER.encode("c2=g2:a2:v2");
 
     private ServerConfig newServerConfig(boolean containerRedirectEnabled) {
         return new ServerConfig(
@@ -48,15 +50,15 @@ public class ServerConfigTest {
     @Test
     public void testDefaultDeploymentId() {
         ServerConfig serverConfig = newServerConfig(true);
-        assertEquals(ENCODED_DEPLOYMENT_ID_C2_V21, serverConfig.getDefaultDeploymentId("c2"));
+        assertEquals(DEPLOYMENT_ID_C2_V21, serverConfig.getDefaultDeploymentIdForAlias("c2"));
         serverConfig = newServerConfig(false);
-        assertEquals("c2", serverConfig.getDefaultDeploymentId("c2"));
+        assertEquals("c2", serverConfig.getDefaultDeploymentIdForAlias("c2"));
     }
 
     @Test
     public void testEmptyDeployment() {
         ServerConfig serverConfig = ServerConfig.getInstance();
-        assertNull(serverConfig.getDefaultDeploymentId(""));
+        assertNull(serverConfig.getDefaultDeploymentIdForAlias(""));
     }
 
     @Test
@@ -66,7 +68,7 @@ public class ServerConfigTest {
         boolean valid = ServerConfig.main(serverConfig, new String[]{"env"}, new PrintStream(out, true), null);
         assertTrue(valid);
         String env = new String(out.toByteArray(), "UTF-8");
-        assertEquals("ServerConfig[" + KIE_SERVER_STATE_FILE + " -> " + KIE_CONTAINER_DEPLOYMENT + "]", env);
+        assertEquals("ServerConfig: serverStateFile=[" + KIE_SERVER_STATE_FILE + "], containerDeployment=[" + KIE_CONTAINER_DEPLOYMENT + "]", env);
     }
 
     @Test
@@ -76,8 +78,8 @@ public class ServerConfigTest {
         boolean valid = ServerConfig.main(serverConfig, new String[]{"xml"}, new PrintStream(out, true), null);
         assertTrue(valid);
         String xml = new String(out.toByteArray(), "UTF-8");
-        assertTrue(xml.contains("<containerId>" + ENCODED_DEPLOYMENT_ID_C2_V21 + "</containerId>"));
-        assertTrue(xml.contains("<containerId>" + ENCODED_DEPLOYMENT_ID_C2_V2 + "</containerId>"));
+        assertTrue(xml.contains("<containerId>" + DEPLOYMENT_ID_C2_V21 + "</containerId>"));
+        assertTrue(xml.contains("<containerId>" + DEPLOYMENT_ID_C2_V2 + "</containerId>"));
         assertFalse(xml.contains("<containerId>c2</containerId>"));
         serverConfig = newServerConfig(false);
         out = new ByteArrayOutputStream();
@@ -85,8 +87,8 @@ public class ServerConfigTest {
         assertTrue(valid);
         xml = new String(out.toByteArray(), "UTF-8");
         assertTrue(xml.contains("<containerId>c2</containerId>"));
-        assertFalse(xml.contains("<containerId>" + ENCODED_DEPLOYMENT_ID_C2_V21 + "</containerId>"));
-        assertFalse(xml.contains("<containerId>" + ENCODED_DEPLOYMENT_ID_C2_V2 + "</containerId>"));
+        assertFalse(xml.contains("<containerId>" + DEPLOYMENT_ID_C2_V21 + "</containerId>"));
+        assertFalse(xml.contains("<containerId>" + DEPLOYMENT_ID_C2_V2 + "</containerId>"));
     }
 
     @Test

@@ -30,7 +30,9 @@ import org.openshift.kieserver.common.coder.SumCoder.SHA256;
 
 public class SumCoderTest {
 
-    private static final String DECODED = "My Container=org.example:test:1.3.0-SNAPSHOT";
+    private static final String DECODED_SPLIT_A = "My";
+    private static final String DECODED_SPLIT_B = "Container=org.example:test:1.3.0-SNAPSHOT";
+    private static final String DECODED = DECODED_SPLIT_A + " " + DECODED_SPLIT_B;
     private static final String MD5_ENCODED = "b56155057560fe8f3dc44b3347fd3c99";
     private static final String SHA1_ENCODED = "18d1e949c130174f82ade8dac19ce55c48b0b425";
     private static final String SHA256_ENCODED = "9b90c6d7a058ad1731f60c9a52f55db8cbc3c66a2be5f39d55e47277281a8a8e";
@@ -76,6 +78,34 @@ public class SumCoderTest {
         assertEquals(SHA1_ENCODED, new String(out.toByteArray(), "UTF-8"));
         out = new ByteArrayOutputStream();
         valid = SHA256.main(new String[]{DECODED}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(SHA256_ENCODED, new String(out.toByteArray(), "UTF-8"));
+    }
+
+    @Test
+    public void testMainEncodeSplit() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        boolean valid = SumCoder.main(new String[]{"MD5", DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(MD5_ENCODED, new String(out.toByteArray(), "UTF-8"));
+        out = new ByteArrayOutputStream();
+        valid = MD5.main(new String[]{DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(MD5_ENCODED, new String(out.toByteArray(), "UTF-8"));
+        out = new ByteArrayOutputStream();
+        valid = SumCoder.main(new String[]{"SHA-1", DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(SHA1_ENCODED, new String(out.toByteArray(), "UTF-8"));
+        out = new ByteArrayOutputStream();
+        valid = SHA1.main(new String[]{DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(SHA1_ENCODED, new String(out.toByteArray(), "UTF-8"));
+        out = new ByteArrayOutputStream();
+        valid = SumCoder.main(new String[]{"SHA-256", DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(SHA256_ENCODED, new String(out.toByteArray(), "UTF-8"));
+        out = new ByteArrayOutputStream();
+        valid = SHA256.main(new String[]{DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
         assertTrue(valid);
         assertEquals(SHA256_ENCODED, new String(out.toByteArray(), "UTF-8"));
     }

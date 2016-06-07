@@ -15,6 +15,7 @@
  */
 package org.openshift.kieserver.web.redirect;
 
+import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,12 +41,17 @@ import javax.ws.rs.core.UriBuilder;
 import org.jboss.resteasy.plugins.server.servlet.ServletUtil;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
 import org.jboss.resteasy.specimpl.UriInfoImpl;
+import org.kie.server.api.KieServerEnvironment;
+import org.kie.server.api.rest.RestURI;
 import org.kie.server.remote.rest.common.KieServerApplication;
 
 public final class PathPattern {
 
-    public static final String ID = "id";
-    public static final String P_INSTANCE_ID = "pInstanceId";
+    public static final String ID = RestURI.CONTAINER_ID; // id
+    public static final String CORRELATION_KEY = RestURI.CORRELATION_KEY; // correlationKey
+    public static final String P_INSTANCE_ID = RestURI.PROCESS_INST_ID; // pInstanceId
+    public static final String T_INSTANCE_ID = RestURI.TASK_INSTANCE_ID; // tInstanceId
+    public static final String WORK_ITEM_ID = RestURI.WORK_ITEM_ID; // workItemId
 
     private static final Class<?>[] JAXRS_METHODS = new Class<?>[] {
         DELETE.class, GET.class, HEAD.class, OPTIONS.class, POST.class, PUT.class
@@ -69,10 +75,6 @@ public final class PathPattern {
                 positions.put(i, undVar.substring(1));
             }
         }
-    }
-
-    public String getPath() {
-        return path;
     }
 
     public boolean matches(String pathInfo) {
@@ -117,11 +119,18 @@ public final class PathPattern {
         return variables != null ? UriBuilder.fromPath(path).buildFromMap(variables).toString() : path;
     }
 
-    public String buildRedirectPath(HttpServletRequest request, String id) {
+    public String buildRedirectPath(HttpServletRequest request, String containerId) {
         Map<String, String> vars = getVariables(request);
-        vars.put(ID, id);
+        if (containerId != null) {
+            vars.put(ID, containerId);
+        }
         String path = buildPath(vars);
         return request.getServletPath() + path;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s: path=[ %s ], pattern=[ %s ], positions=[ %s ]", PathPattern.class.getSimpleName(), path, pattern, positions);
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -129,9 +138,8 @@ public final class PathPattern {
         Set<String> paths = new TreeSet<String>(new Comparator<String>(){
             @Override
             public int compare(String o1, String o2) {
-                return o1.compareTo(o2);
-                /*
-                // longer paths match first
+                //return o1.compareTo(o2);
+                // make longer paths match first
                 int l1 = o1.length();
                 int l2 = o2.length();
                 if (l1 > l2) {
@@ -141,7 +149,6 @@ public final class PathPattern {
                 } else {
                     return o1.compareTo(o2);
                 }
-                */
             }});
         KieServerApplication app = new KieServerApplication();
         Set<Object> singletons = app.getSingletons();
@@ -172,10 +179,27 @@ public final class PathPattern {
         }
         List<PathPattern> pathPatterns = new ArrayList<PathPattern>();
         for (String path : paths) {
-            //System.out.println(path);
             pathPatterns.add(new PathPattern(path));
         }
         return Collections.unmodifiableList(pathPatterns);
+    }
+
+    public static void main(String... args) {
+        String simpleName = PathPattern.class.getSimpleName();
+        File simpleFile = null;
+        if (KieServerEnvironment.getServerId() == null) {
+            KieServerEnvironment.setServerId(simpleName);
+            simpleFile = new File(simpleName + ".xml");
+        }
+        if (KieServerEnvironment.getServerName() == null) {
+            KieServerEnvironment.setServerName(simpleName);
+        }
+        for (PathPattern pp : buildPathPatterns()) {
+            System.out.println(pp);
+        }
+        if (simpleFile != null && simpleFile.exists()) {
+            simpleFile.delete();
+        }
     }
 
 }
