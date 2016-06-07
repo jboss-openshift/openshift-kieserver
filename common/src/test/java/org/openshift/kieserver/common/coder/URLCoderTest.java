@@ -27,23 +27,41 @@ import org.openshift.kieserver.common.coder.URLCoder;
 
 public class URLCoderTest {
 
-    private static final String DECODED = "My Container=org.example:test:1.3.0-SNAPSHOT";
-    private static final String ENCODED = "My+Container%3Dorg.example%3Atest%3A1.3.0-SNAPSHOT";
+    private static final String DECODED_SPLIT_A = "My";
+    private static final String DECODED_SPLIT_B = "Container=org.example:test:1.3.0-SNAPSHOT";
+    private static final String DECODED = DECODED_SPLIT_A + " " + DECODED_SPLIT_B;
+    private static final String ENCODED = "My%20Container%3Dorg.example%3Atest%3A1.3.0-SNAPSHOT";
+    private static final String ENCODED_PLUS = "My+Container%3Dorg.example%3Atest%3A1.3.0-SNAPSHOT";
 
     @Test
     public void testEncode() {
         assertEquals(ENCODED, new URLCoder().encode(DECODED));
+        assertEquals(ENCODED, new URLCoder(true).encode(DECODED));
+        assertEquals(ENCODED_PLUS, new URLCoder(false).encode(DECODED));
     }
 
     @Test
     public void testDecode() {
         assertEquals(DECODED, new URLCoder().decode(ENCODED));
+        assertEquals(DECODED, new URLCoder(true).decode(ENCODED));
+        assertEquals(DECODED, new URLCoder(false).decode(ENCODED));
+        assertEquals(DECODED, new URLCoder().decode(ENCODED_PLUS));
+        assertEquals(DECODED, new URLCoder(true).decode(ENCODED_PLUS));
+        assertEquals(DECODED, new URLCoder(false).decode(ENCODED_PLUS));
     }
 
     @Test
     public void testMainEncode() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         boolean valid = URLCoder.main(new String[]{"encode", DECODED}, new PrintStream(out, true), null);
+        assertTrue(valid);
+        assertEquals(ENCODED, new String(out.toByteArray(), "UTF-8"));
+    }
+
+    @Test
+    public void testMainEncodeSplit() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        boolean valid = URLCoder.main(new String[]{"encode", DECODED_SPLIT_A, DECODED_SPLIT_B}, new PrintStream(out, true), null);
         assertTrue(valid);
         assertEquals(ENCODED, new String(out.toByteArray(), "UTF-8"));
     }

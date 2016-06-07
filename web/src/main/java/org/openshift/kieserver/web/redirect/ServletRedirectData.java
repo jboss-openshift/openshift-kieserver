@@ -16,10 +16,14 @@
 package org.openshift.kieserver.web.redirect;
 
 import static org.openshift.kieserver.common.id.ConversationId.KIE_CONVERSATION_ID_TYPE_HEADER;
+import static org.openshift.kieserver.web.redirect.PathPattern.CORRELATION_KEY;
 import static org.openshift.kieserver.web.redirect.PathPattern.ID;
 import static org.openshift.kieserver.web.redirect.PathPattern.P_INSTANCE_ID;
+import static org.openshift.kieserver.web.redirect.PathPattern.T_INSTANCE_ID;
+import static org.openshift.kieserver.web.redirect.PathPattern.WORK_ITEM_ID;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -28,79 +32,83 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.jbpm.services.api.RuntimeDataService;
-import org.jbpm.services.api.model.ProcessInstanceDesc;
-import org.openshift.kieserver.common.id.ConversationId;
+import org.openshift.kieserver.common.server.DeploymentHelper;
 
 public class ServletRedirectData implements RedirectData {
 
     private final HttpServletRequest request;
     private final HttpServletResponse response;
-    private final List<PathPattern> pathPatterns;
-    private final RuntimeDataService runtimeDataService;
+    private final PathPattern pathPattern;
+    private final Map<String, String> pathVariables;
+    private final DeploymentHelper deploymentHelper;
 
-    public ServletRedirectData(ServletRequest request, ServletResponse response, List<PathPattern> pathPatterns, RuntimeDataService runtimeDataService) {
+    public ServletRedirectData(
+            ServletRequest request,
+            ServletResponse response, 
+            List<PathPattern> pathPatterns,
+            DeploymentHelper deploymentHelper) {
         this.request = (HttpServletRequest)request;
         this.response = (HttpServletResponse)response;
-        this.pathPatterns = pathPatterns;
-        this.runtimeDataService = runtimeDataService;
+        this.pathPattern = getPathPattern(pathPatterns);
+        this.pathVariables = getPathVariables(pathPattern);
+        this.deploymentHelper = deploymentHelper;
+    }
+
+    private PathPattern getPathPattern(List<PathPattern> pathPatterns) {
+        for (PathPattern pathPattern : pathPatterns) {
+            if (pathPattern.matches(request)) {
+                return pathPattern;
+            }
+        }
+        return null;
+    }
+
+    private Map<String, String> getPathVariables(PathPattern pathPattern) {
+        if (pathPattern != null) {
+            return pathPattern.getVariables(request);
+        }
+        return Collections.emptyMap();
     }
 
     @Override
     public String getRequestedContainerId() {
-        for (PathPattern pathPattern : pathPatterns) {
-            if (pathPattern.matches(request)) {
-                Map<String, String> vars = pathPattern.getVariables(request);
-                String cid = vars.get(ID);
-                if (cid != null) {
-                    return cid;
-                }
-            }
-        }
-        return null;
+        return pathVariables.get(ID);
     }
 
     @Override
-    public String getConversationContainerId() {
-        String header = request.getHeader(KIE_CONVERSATION_ID_TYPE_HEADER);
-        if (header != null) {
-            header = header.trim();
-            if (header.length() > 0) {
-                ConversationId conversationId = ConversationId.fromString(header);
-                return conversationId.getContainerId();
-            }
-        }
-        return null;
+    public String getDeploymentIdByConversationId() {
+        String conversationId = request.getHeader(KIE_CONVERSATION_ID_TYPE_HEADER);
+        return deploymentHelper.getDeploymentIdByConversationId(conversationId);
     }
 
     @Override
-    public String getProcessContainerId() {
-        String pInstanceId = null;
-        for (PathPattern pathPattern : pathPatterns) {
-            if (pathPattern.matches(request)) {
-                Map<String, String> vars = pathPattern.getVariables(request);
-                pInstanceId = vars.get(P_INSTANCE_ID);
-                if (pInstanceId != null) {
-                    break;
-                }
-            }
-        }
-        if (pInstanceId != null) {
-            long pid = Long.valueOf(pInstanceId).longValue();
-            ProcessInstanceDesc desc = runtimeDataService.getProcessInstanceById(pid);
-            if (desc != null) {
-                return desc.getDeploymentId();
-            }
-        }
-        return null;
+    public String getDeploymentIdByCorrelationKey() {
+        String correlationKey = pathVariables.get(CORRELATION_KEY);
+        return deploymentHelper.getDeploymentIdByCorrelationKey(correlationKey);
     }
 
     @Override
-    public String buildRedirect(String containerId) {
-        for (PathPattern pathPattern : pathPatterns) {
-            if (pathPattern.matches(request)) {
-                return pathPattern.buildRedirectPath(request, containerId);
-            }
+    public String getDeploymentIdByProcessInstanceId() {
+        String pInstanceId = pathVariables.get(P_INSTANCE_ID);
+        return deploymentHelper.getDeploymentIdByProcessInstanceId(pInstanceId);
+    }
+
+    @Override
+    public String getDeploymentIdByTaskInstanceId() {
+        String tInstanceId = pathVariables.get(T_INSTANCE_ID);
+        return deploymentHelper.getDeploymentIdByTaskInstanceId(tInstanceId);
+    }
+
+    @Override
+    public String getDeploymentIdByWorkItemId() {
+        String workItemId = pathVariables.get(WORK_ITEM_ID);
+        return deploymentHelper.getDeploymentIdByWorkItemId(workItemId);
+    }
+
+    @Override
+    public String buildRedirect(String deploymentId) {
+        if (pathPattern != null) {
+            return pathPattern.buildRedirectPath(request, deploymentId);
         }
         return null;
     }

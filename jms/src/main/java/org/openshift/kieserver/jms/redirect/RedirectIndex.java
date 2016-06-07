@@ -13,28 +13,30 @@
  *  implied.  See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package org.openshift.kieserver.web.redirect;
+package org.openshift.kieserver.jms.redirect;
 
-import java.io.IOException;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-public interface RedirectData {
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
-    public String getRequestedContainerId();
+@Target(METHOD)
+@Retention(RUNTIME)
+@Documented
+public @interface RedirectIndex {
 
-    public String getDeploymentIdByConversationId();
+    public int containerId() default -1;
 
-    public String getDeploymentIdByCorrelationKey();
+    public int correlationKey() default -1;
 
-    public String getDeploymentIdByProcessInstanceId();
+    public int processInstanceId() default -1;
 
-    public String getDeploymentIdByTaskInstanceId();
+    public int processInstanceIds() default -1;
 
-    public String getDeploymentIdByWorkItemId();
+    public int taskInstanceId() default -1;
 
-    public String buildRedirect(String deploymentId);
-
-    public void log(String msg);
-
-    public void sendError(int sc, String msg) throws IOException;
+    public int workItemId() default -1;
 
 }

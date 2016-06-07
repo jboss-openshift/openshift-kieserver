@@ -13,28 +13,24 @@
  *  implied.  See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package org.openshift.kieserver.web.redirect;
+package org.openshift.kieserver.common.coder;
 
-import java.io.IOException;
+public class NullSafeCoder implements Coder {
 
-public interface RedirectData {
+    private final Coder coder;
 
-    public String getRequestedContainerId();
+    public NullSafeCoder(Coder coder) {
+        this.coder = (coder != this) ? coder : null;
+    }
 
-    public String getDeploymentIdByConversationId();
+    @Override
+    public String encode(String s) {
+        return (coder != null && s != null) ? coder.encode(s) : null;
+    }
 
-    public String getDeploymentIdByCorrelationKey();
-
-    public String getDeploymentIdByProcessInstanceId();
-
-    public String getDeploymentIdByTaskInstanceId();
-
-    public String getDeploymentIdByWorkItemId();
-
-    public String buildRedirect(String deploymentId);
-
-    public void log(String msg);
-
-    public void sendError(int sc, String msg) throws IOException;
+    @Override
+    public String decode(String s) {
+        return (coder != null && s != null) ? coder.decode(s) : null;
+    }
 
 }

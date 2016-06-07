@@ -39,8 +39,8 @@ public class SumCoder implements Coder {
     @Override
     public String encode(String s) {
         try {
-            MessageDigest md5 = MessageDigest.getInstance(algorithm);
-            byte[] digest = md5.digest(s.getBytes(charset));
+            MessageDigest md = MessageDigest.getInstance(algorithm);
+            byte[] digest = md.digest(s.getBytes(charset));
             return DatatypeConverter.printHexBinary(digest).toLowerCase();
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
@@ -65,9 +65,16 @@ public class SumCoder implements Coder {
     static final String USAGE = "Usage: java " + SumCoder.class.getName() + " <algorithm> <string>\n";
     static boolean main(String[] args, PrintStream out, PrintStream err) {
         boolean valid = false;
-        if (args != null && args.length == 2) {
+        if (args != null && args.length > 1) {
             String algo = args[0].trim().toUpperCase();
-            String s = args[1];
+            StringBuilder sb = new StringBuilder();
+            for (int i=1; i < args.length; i++) {
+                if (i > 1) {
+                    sb.append(' ');
+                }
+                sb.append(args[i]);
+            }
+            String s = sb.toString();
             out.print(new SumCoder(algo).encode(s));
             valid = true;
         }
@@ -88,11 +95,18 @@ public class SumCoder implements Coder {
         }
 
         // package-protected for JUnit testing
-        static final String USAGE = "Usage: java " + MD5.class.getName() + " <string>\n";
+        static final String USAGE = "Usage: java " + SumCoder.class.getName() + "$" + MD5.class.getSimpleName() + " <string>\n";
         static boolean main(String[] args, PrintStream out, PrintStream err) {
             boolean valid = false;
-            if (args != null && args.length == 1) {
-                String s = args[0];
+            if (args != null && args.length > 0) {
+                StringBuilder sb = new StringBuilder();
+                for (int i=0; i < args.length; i++) {
+                    if (i > 0) {
+                        sb.append(' ');
+                    }
+                    sb.append(args[i]);
+                }
+                String s = sb.toString();
                 out.print(new MD5().encode(s));
                 valid = true;
             }
@@ -115,11 +129,18 @@ public class SumCoder implements Coder {
         }
 
         // package-protected for JUnit testing
-        static final String USAGE = "Usage: java " + SHA1.class.getName() + " <string>\n";
+        static final String USAGE = "Usage: java " + SumCoder.class.getName() + "$" + SHA1.class.getSimpleName() + " <string>\n";
         static boolean main(String[] args, PrintStream out, PrintStream err) {
             boolean valid = false;
-            if (args != null && args.length == 1) {
-                String s = args[0];
+            if (args != null && args.length > 0) {
+                StringBuilder sb = new StringBuilder();
+                for (int i=0; i < args.length; i++) {
+                    if (i > 0) {
+                        sb.append(' ');
+                    }
+                    sb.append(args[i]);
+                }
+                String s = sb.toString();
                 out.print(new SHA1().encode(s));
                 valid = true;
             }
@@ -142,11 +163,18 @@ public class SumCoder implements Coder {
         }
 
         // package-protected for JUnit testing
-        static final String USAGE = "Usage: java " + SHA256.class.getName() + " <string>\n";
+        static final String USAGE = "Usage: java " + SumCoder.class.getName() + "$" + SHA256.class.getSimpleName() + " <string>\n";
         static boolean main(String[] args, PrintStream out, PrintStream err) {
             boolean valid = false;
-            if (args != null && args.length == 1) {
-                String s = args[0];
+            if (args != null && args.length > 0) {
+                StringBuilder sb = new StringBuilder();
+                for (int i=0; i < args.length; i++) {
+                    if (i > 0) {
+                        sb.append(' ');
+                    }
+                    sb.append(args[i]);
+                }
+                String s = sb.toString();
                 out.print(new SHA256().encode(s));
                 valid = true;
             }
