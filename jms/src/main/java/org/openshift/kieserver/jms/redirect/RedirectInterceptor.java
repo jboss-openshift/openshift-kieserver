@@ -22,11 +22,8 @@ import static org.kie.server.api.marshalling.MarshallingFormat.JSON;
 import static org.kie.server.api.marshalling.MarshallingFormat.XSTREAM;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,17 +43,13 @@ import org.kie.server.api.jms.JMSConstants;
 import org.kie.server.api.marshalling.Marshaller;
 import org.kie.server.api.marshalling.MarshallerFactory;
 import org.kie.server.api.marshalling.MarshallingFormat;
-import org.kie.server.api.marshalling.ModelWrapper;
 import org.kie.server.api.model.KieServerCommand;
-import org.kie.server.api.model.Wrapped;
 import org.kie.server.jms.JMSRuntimeException;
 import org.kie.server.services.api.KieContainerInstance;
 import org.kie.server.services.impl.KieServerImpl;
 import org.kie.server.services.impl.KieServerLocator;
-import org.kie.server.services.jbpm.DefinitionServiceBase;
-import org.kie.server.services.jbpm.ProcessServiceBase;
-import org.kie.server.services.jbpm.UserTaskServiceBase;
 import org.openshift.kieserver.common.id.ConversationId;
+import org.openshift.kieserver.common.server.DeploymentHelper;
 import org.openshift.kieserver.common.server.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,81 +81,55 @@ public class RedirectInterceptor {
     }
 
     private final ServerConfig serverConfig;
+    private final boolean containerRedirectEnabled;
     private final Map<MarshallingFormat, Marshaller> marshallers;
-    private final Map<String,Map<String,Integer>> services_methods_cidxs;
+    private final ServiceHelper serviceHelper;
+    private final DeploymentHelper deploymentHelper;
 
     public RedirectInterceptor() {
         serverConfig = ServerConfig.getInstance();
+        containerRedirectEnabled = serverConfig.isContainerRedirectEnabled();
         marshallers = new ConcurrentHashMap<MarshallingFormat, Marshaller>();
-        ClassLoader classLoader = CommandScript.class.getClassLoader();
-        marshallers.put(XSTREAM, MarshallerFactory.getMarshaller(XSTREAM, classLoader));
-        marshallers.put(JAXB, MarshallerFactory.getMarshaller(JAXB, classLoader));
-        marshallers.put(JSON, MarshallerFactory.getMarshaller(JSON, classLoader));
-        services_methods_cidxs = new HashMap<String,Map<String,Integer>>();
-        for (Method method : DefinitionServiceBase.class.getDeclaredMethods()) {
-            if (Modifier.isPublic(method.getModifiers())) {
-                putServiceContainerIdIndexMethods("DefinitionService", 0, method.getName());
-            }
+        serviceHelper = new ServiceHelper();
+        deploymentHelper = new DeploymentHelper();
+        if (containerRedirectEnabled) {
+            ClassLoader classLoader = CommandScript.class.getClassLoader();
+            marshallers.put(XSTREAM, MarshallerFactory.getMarshaller(XSTREAM, classLoader));
+            marshallers.put(JAXB, MarshallerFactory.getMarshaller(JAXB, classLoader));
+            marshallers.put(JSON, MarshallerFactory.getMarshaller(JSON, classLoader));
         }
-        for (Method method : ProcessServiceBase.class.getDeclaredMethods()) {
-            if (Modifier.isPublic(method.getModifiers())) {
-                putServiceContainerIdIndexMethods("ProcessService", 0, method.getName());
-            }
-        }
-        for (Method method : UserTaskServiceBase.class.getDeclaredMethods()) {
-            if (Modifier.isPublic(method.getModifiers())) {
-                putServiceContainerIdIndexMethods("UserTaskService", 0, method.getName());
-            }
-        }
-        putServiceContainerIdIndexMethods("QueryService", 0,
-                "getProcessInstancesByDeploymentId",
-                "getProcessesByDeploymentId",
-                "getProcessesByDeploymentIdProcessId");
-    }
-
-    private void putServiceContainerIdIndexMethods(String service, Integer cidx, String... methods) {
-        Map<String,Integer> methods_cidxs = services_methods_cidxs.get(service);
-        if (methods_cidxs == null) {
-            methods_cidxs = new HashMap<String,Integer>();
-            services_methods_cidxs.put(service, methods_cidxs);
-        }
-        for (String method : methods) {
-            methods_cidxs.put(method, cidx);
-        }
-    }
-
-    private Integer getServiceMethodContainerIdIndex(String service, String method) {
-        if (service != null && method != null) {
-            Map<String,Integer> methods_cidxs = services_methods_cidxs.get(service);
-            if (methods_cidxs != null) {
-                return methods_cidxs.get(method);
-            }
-        }
-        return null;
     }
 
     @AroundInvoke
     public Object doIntercept(InvocationContext ctx) throws Exception {
-        if (ON_MESSAGE.equals(ctx.getMethod().getName())) {
+        if (containerRedirectEnabled && ON_MESSAGE.equals(ctx.getMethod().getName())) {
             Message message = (Message)ctx.getParameters()[0];
+            // this is often null for JMS
             String requestedContainerId = getRequestedContainerId(message);
-            if (!serverConfig.hasDeploymentId(requestedContainerId)) {
-                String redirectContainerId = null;
-                if (redirectContainerId == null) {
-                    String conversationContainerId = getConversationContainerId(message);
-                    if (serverConfig.hasDeploymentId(conversationContainerId)) {
-                        redirectContainerId = conversationContainerId;
+            // only if they tried to hit a specific container, and the id is not an actual deployment, do we try to redirect
+            if (requestedContainerId == null || !serverConfig.hasDeploymentId(requestedContainerId)) {
+                String msgCorrId = getCorrelationId(message);
+                MarshallingFormat format = getMarshallingFormat(message, msgCorrId);
+                String configDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
+                String redirectDeploymentId = null;
+                if (serverConfig.hasDeploymentId(configDeploymentId)) {
+                    redirectDeploymentId = configDeploymentId;
+                } else {
+                    String conversationDeploymentId = getDeploymentIdByConversationId(message);
+                    String defaultDeploymentId = serverConfig.getDefaultDeploymentIdForAlias(requestedContainerId);
+                    Marshaller marshaller = getMarshaller(format, conversationDeploymentId, defaultDeploymentId);
+                    String commandDeploymentId = getCommandDeploymentId(message, msgCorrId, marshaller);
+                    if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                        redirectDeploymentId = commandDeploymentId;
+                    } else if (serverConfig.hasDeploymentId(conversationDeploymentId)) {
+                        redirectDeploymentId = conversationDeploymentId;
+                    } else if (serverConfig.hasDeploymentId(defaultDeploymentId)) {
+                        redirectDeploymentId = defaultDeploymentId;
                     }
                 }
-                if (redirectContainerId == null) {
-                    String defaultDeploymentId = serverConfig.getDefaultDeploymentId(requestedContainerId);
-                    if (serverConfig.hasDeploymentId(defaultDeploymentId)) {
-                        redirectContainerId = defaultDeploymentId;
-                    }
-                }
-                if (redirectContainerId != null) {
+                if (redirectDeploymentId != null) {
                     if (LOGGER.isDebugEnabled()) {
-                        String log = String.format("%s redirecting: %s -> %s", ON_MESSAGE, requestedContainerId, redirectContainerId);
+                        String log = String.format("%s redirecting to %s", ON_MESSAGE, redirectDeploymentId);
                         LOGGER.debug(log);
                     }
                     // properties are read-only unless you clear them first
@@ -172,54 +139,35 @@ public class RedirectInterceptor {
                         String propName = (String)propNames.nextElement();
                         properties.put(propName, message.getObjectProperty(propName));
                     }
-                    properties.put(CONTAINER_ID_PROPERTY_NAME, redirectContainerId);
+                    properties.put(CONTAINER_ID_PROPERTY_NAME, redirectDeploymentId);
                     message.clearProperties();
                     for (Entry<String,Object> property : properties.entrySet()) {
                         message.setObjectProperty(property.getKey(), property.getValue());
                     }
                     boolean resetText = false;
-                    String msgCorrId = getCorrelationId(message);
-                    MarshallingFormat format = getMarshallingFormat(message, msgCorrId);
-                    Marshaller marshaller = getMarshaller(redirectContainerId, format);
+                    Marshaller marshaller = getMarshaller(format, redirectDeploymentId);
                     CommandScript script = unmarshallRequest(message, msgCorrId, marshaller);
                     for (KieServerCommand command : script.getCommands()) {
                         // not all commands are allowed in OpenShift KIE Server
                         if (command instanceof CallContainerCommand) {
-                            ((CallContainerCommand)command).setContainerId(redirectContainerId);
+                            ((CallContainerCommand)command).setContainerId(redirectDeploymentId);
                             resetText = true;
                         } else if (command instanceof DescriptorCommand) {
-                            DescriptorCommand descriptorCommand = (DescriptorCommand)command;
-                            Integer index = getServiceMethodContainerIdIndex(descriptorCommand.getService(), descriptorCommand.getMethod());
-                            if (index != null) {
-                                List<Object> arguments = descriptorCommand.getArguments();
-                                if (arguments.size() > index) {
-                                    Object arg = arguments.get(index);
-                                    boolean wrap = false;
-                                    if (arg instanceof Wrapped) {
-                                        arg = ((Wrapped<?>)arg).unwrap();
-                                        wrap = true;
-                                    }
-                                    if (requestedContainerId.equals(arg)) {
-                                        arg = redirectContainerId;
-                                        if (wrap) {
-                                            arg = ModelWrapper.wrap(arg);
-                                        }
-                                        arguments.set(index, arg);
-                                        resetText = true;
-                                    }
-                                }
+                            DescriptorCommand dc = (DescriptorCommand)command;
+                            ServiceMethod sm = serviceHelper.getServiceMethod(dc);
+                            if (sm != null && sm.setContainerId(dc, redirectDeploymentId)) {
+                                resetText = true;
                             }
                         } else if (command instanceof GetContainerInfoCommand) {
-                            ((GetContainerInfoCommand)command).setContainerId(redirectContainerId);
+                            ((GetContainerInfoCommand)command).setContainerId(redirectDeploymentId);
                             resetText = true;
                         } else if (command instanceof GetScannerInfoCommand) {
-                            ((GetScannerInfoCommand)command).setContainerId(redirectContainerId);
+                            ((GetScannerInfoCommand)command).setContainerId(redirectDeploymentId);
                             resetText = true;
                         }
                     }
                     if (resetText) {
                         String text = marshallRequest(script, msgCorrId, marshaller);
-                        //System.out.println(text);
                         // body is read-only unless you clear it first
                         message.clearBody();
                         ((TextMessage)message).setText(text);
@@ -228,6 +176,60 @@ public class RedirectInterceptor {
             }
         }
         return ctx.proceed();
+    }
+
+    private String getCommandDeploymentId(Message message, String msgCorrId, Marshaller marshaller) {
+        boolean found = false;
+        String commandDeploymentId = null;
+        CommandScript script = unmarshallRequest(message, msgCorrId, marshaller);
+        for (KieServerCommand command : script.getCommands()) {
+            if (command instanceof DescriptorCommand) {
+                DescriptorCommand dc = (DescriptorCommand)command;
+                ServiceMethod sm = serviceHelper.getServiceMethod(dc);
+                commandDeploymentId = deploymentHelper.getDeploymentIdByProcessInstanceId(sm.getProcessInstanceId(dc));
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = deploymentHelper.getDeploymentIdByProcessInstanceIds(sm.getProcessInstanceIds(dc));
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = deploymentHelper.getDeploymentIdByCorrelationKey(sm.getCorrelationKey(dc));
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = deploymentHelper.getDeploymentIdByTaskInstanceId(sm.getTaskInstanceId(dc));
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = deploymentHelper.getDeploymentIdByWorkItemId(sm.getWorkItemId(dc));
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                final String requestedContainerId = sm.getContainerId(dc);
+                commandDeploymentId = requestedContainerId;
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = serverConfig.getDefaultDeploymentIdForAlias(requestedContainerId);
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        return found ? commandDeploymentId : null;
     }
 
     private String getRequestedContainerId(Message message) {
@@ -242,7 +244,7 @@ public class RedirectInterceptor {
         return containerId;
     }
 
-    private String getConversationContainerId(Message message) {
+    private String getDeploymentIdByConversationId(Message message) {
         try {
             if (message.propertyExists(CONVERSATION_ID_PROPERTY_NAME)) {
                 String property = message.getStringProperty(CONVERSATION_ID_PROPERTY_NAME);
@@ -286,37 +288,38 @@ public class RedirectInterceptor {
         return format;
     }
 
-    protected Marshaller getMarshaller(String containerId, MarshallingFormat format) {
-        if (containerId == null || containerId.isEmpty()) {
-            return marshallers.get(format);
-        }
-        KieServerImpl kieServer = KieServerLocator.getInstance();
-        KieContainerInstance kieContainerInstance = kieServer.getServerRegistry().getContainer(containerId);
-        if (kieContainerInstance != null && kieContainerInstance.getKieContainer() != null) {
-            return kieContainerInstance.getMarshaller(format);
+    private Marshaller getMarshaller(MarshallingFormat format, String... deploymentIds) {
+        for (String deploymentId : deploymentIds) {
+            if (deploymentId != null && !deploymentId.isEmpty() && serverConfig.hasDeploymentId(deploymentId)) {
+                KieServerImpl kieServer = KieServerLocator.getInstance();
+                KieContainerInstance kieContainerInstance = kieServer.getServerRegistry().getContainer(deploymentId);
+                if (kieContainerInstance != null && kieContainerInstance.getKieContainer() != null) {
+                    return kieContainerInstance.getMarshaller(format);
+                }
+            }
         }
         return marshallers.get(format);
     }
 
-    private static CommandScript unmarshallRequest(Message message, String msgId, Marshaller serializationProvider) {
+    private CommandScript unmarshallRequest(Message message, String msgCorrId, Marshaller marshaller) {
         CommandScript cmdMsg = null;
         try {
             String msgStrContent = ((TextMessage)message).getText();
-            cmdMsg = serializationProvider.unmarshall(msgStrContent, CommandScript.class);
+            cmdMsg = marshaller.unmarshall(msgStrContent, CommandScript.class);
         } catch (JMSException jmse) {
-            String errMsg = "Unable to read information from message " + msgId + ".";
+            String errMsg = "Unable to read information from message " + msgCorrId + ".";
             throw new JMSRuntimeException(errMsg, jmse);
         } catch (Exception e) {
-            String errMsg = "Unable to unmarshall request to " + CommandScript.class.getSimpleName() + " [msg id: " + msgId + "].";
+            String errMsg = "Unable to unmarshall request to " + CommandScript.class.getSimpleName() + " [msg id: " + msgCorrId + "].";
             throw new JMSRuntimeException(errMsg, e);
         }
         return cmdMsg;
     }
 
-    private static String marshallRequest(CommandScript cmdMsg, String msgId, Marshaller serializationProvider) {
+    private String marshallRequest(CommandScript cmdMsg, String msgId, Marshaller marshaller) {
         String msgStrContent = null;
         try {
-            msgStrContent = serializationProvider.marshall(cmdMsg);
+            msgStrContent = marshaller.marshall(cmdMsg);
         } catch (Exception e) {
             String errMsg = "Unable to marshall request from " + CommandScript.class.getSimpleName() + " [msg id: " + msgId + "].";
             throw new JMSRuntimeException(errMsg, e);
