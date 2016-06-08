@@ -19,23 +19,42 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.util.regex.Pattern;
 
 public final class URLCoder implements Coder {
 
+    private static final String UTF_8 = "UTF-8";
+    private static final Pattern PLUS_PATTERN = Pattern.compile("\\+");
+    private static final String PERCENT20_STRING = "%20";
+
     private final String charset;
+    private final boolean replacePlus;
 
     public URLCoder() {
-        this("UTF-8");
+        this(UTF_8, true);
     }
 
     public URLCoder(String charset) {
+        this(charset, true);
+    }
+
+    public URLCoder(boolean replacePlus) {
+        this(UTF_8, replacePlus);
+    }
+
+    public URLCoder(String charset, boolean replacePlus) {
         this.charset = charset;
+        this.replacePlus = replacePlus;
     }
 
     @Override
     public String encode(String s) {
         try {
-            return URLEncoder.encode(s, charset);
+            String e = URLEncoder.encode(s, charset);
+            if (replacePlus) {
+                e = PLUS_PATTERN.matcher(e).replaceAll(PERCENT20_STRING);
+            }
+            return e;
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
@@ -61,9 +80,16 @@ public final class URLCoder implements Coder {
     static final String USAGE = "Usage: java " + URLCoder.class.getName() + " <encode|decode> <string>\n";
     static boolean main(String[] args, PrintStream out, PrintStream err) {
         boolean valid = false;
-        if (args != null && args.length == 2) {
+        if (args != null && args.length > 1) {
             String op = args[0].trim().toLowerCase();
-            String s = args[1];
+            StringBuilder sb = new StringBuilder();
+            for (int i=1; i < args.length; i++) {
+                if (i > 1) {
+                    sb.append(' ');
+                }
+                sb.append(args[i]);
+            }
+            String s = sb.toString();
             if ("encode".equals(op)) {
                 out.print(new URLCoder().encode(s));
                 valid = true;

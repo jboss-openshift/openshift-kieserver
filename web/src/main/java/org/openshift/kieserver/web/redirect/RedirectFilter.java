@@ -15,8 +15,6 @@
  */
 package org.openshift.kieserver.web.redirect;
 
-import static org.openshift.kieserver.common.server.ServerUtil.CAPABILITY_BPM;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -28,9 +26,8 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 
-import org.jbpm.services.api.RuntimeDataService;
+import org.openshift.kieserver.common.server.DeploymentHelper;
 import org.openshift.kieserver.common.server.ServerConfig;
-import org.openshift.kieserver.common.server.ServerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +38,7 @@ public class RedirectFilter implements Filter {
     private ServerConfig serverConfig = null;
     private boolean containerRedirectEnabled = false;
     private List<PathPattern> pathPatterns = null;
-    private RuntimeDataService runtimeDataService = null;
+    private DeploymentHelper deploymentHelper = null;
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -49,7 +46,7 @@ public class RedirectFilter implements Filter {
         containerRedirectEnabled = serverConfig.isContainerRedirectEnabled();
         if (containerRedirectEnabled) {
             pathPatterns = PathPattern.buildPathPatterns();
-            runtimeDataService = ServerUtil.getAppComponentService(CAPABILITY_BPM, RuntimeDataService.class);
+            deploymentHelper = new DeploymentHelper();
         }
     }
 
@@ -61,32 +58,58 @@ public class RedirectFilter implements Filter {
             return;
         }
         String redirect = null;
-        RedirectData data = new ServletRedirectData(request, response, pathPatterns, runtimeDataService);
+        String redirectDeploymentId;
+        RedirectData data = new ServletRedirectData(request, response, pathPatterns, deploymentHelper);
         String requestedContainerId = data.getRequestedContainerId();
-        if (!serverConfig.hasDeploymentId(requestedContainerId)) {
+        // only if they tried to hit a specific container, and the id is not an actual deployment, do we try to redirect
+        if (requestedContainerId != null && !serverConfig.hasDeploymentId(requestedContainerId)) {
             if (redirect == null) {
-                String conversationContainerId = data.getConversationContainerId();
-                if (serverConfig.hasDeploymentId(conversationContainerId)) {
-                    redirect = data.buildRedirect(conversationContainerId);
+                String configDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
+                if (serverConfig.hasDeploymentId(configDeploymentId)) {
+                    redirect = data.buildRedirect(configDeploymentId);
                 }
             }
             if (redirect == null) {
-                String processContainerId = data.getProcessContainerId();
-                if (serverConfig.hasDeploymentId(processContainerId)) {
-                    redirect = data.buildRedirect(processContainerId);
+                redirectDeploymentId = data.getDeploymentIdByProcessInstanceId();
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
                 }
             }
             if (redirect == null) {
-                String defaultDeploymentId = serverConfig.getDefaultDeploymentId(requestedContainerId);
-                if (serverConfig.hasDeploymentId(defaultDeploymentId)) {
-                    redirect = data.buildRedirect(defaultDeploymentId);
+                redirectDeploymentId = data.getDeploymentIdByCorrelationKey();
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
+                }
+            }
+            if (redirect == null) {
+                redirectDeploymentId = data.getDeploymentIdByTaskInstanceId();
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
+                }
+            }
+            if (redirect == null) {
+                redirectDeploymentId = data.getDeploymentIdByWorkItemId();
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
+                }
+            }
+            if (redirect == null) {
+                redirectDeploymentId = data.getDeploymentIdByConversationId();
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
+                }
+            }
+            if (redirect == null) {
+                redirectDeploymentId = serverConfig.getDefaultDeploymentIdForAlias(requestedContainerId);
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
                 }
             }
         }
         if (redirect != null) {
             if (LOGGER.isDebugEnabled()) {
                 HttpServletRequest httpRequest = (HttpServletRequest)request;
-                String log = String.format("doFilter redirecting: %s%s -> %s", httpRequest.getServletPath(), httpRequest.getPathInfo(), redirect);
+                String log = String.format("doFilter redirecting from %s%s to %s", httpRequest.getServletPath(), httpRequest.getPathInfo(), redirect);
                 LOGGER.debug(log);
             }
             request.getRequestDispatcher(redirect).forward(request, response);
@@ -100,7 +123,7 @@ public class RedirectFilter implements Filter {
         serverConfig = null;
         containerRedirectEnabled = false;
         pathPatterns = null;
-        runtimeDataService = null;
+        deploymentHelper = null;
     }
 
 }

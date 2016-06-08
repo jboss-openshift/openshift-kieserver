@@ -22,11 +22,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-services-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.kie.server</groupId>
             <artifactId>kie-server-api</artifactId>
             <scope>provided</scope>
@@ -34,16 +29,6 @@
         <dependency>
             <groupId>org.kie.server</groupId>
             <artifactId>kie-server-rest-common</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.kie.server</groupId>
-            <artifactId>kie-server-rest-drools</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.kie.server</groupId>
-            <artifactId>kie-server-rest-jbpm</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>

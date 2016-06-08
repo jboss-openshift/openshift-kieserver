@@ -51,8 +51,8 @@
 
     <modules>
         <module>common</module>
-        <module>web</module>
         <module>jms</module>
+        <module>web</module>
     </modules>
 
     <dependencies>

@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringWriter;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,8 +59,8 @@ public class ServerConfig {
     private final String containerDeployment;
     private final boolean containerRedirectEnabled;
     private final Coder coder;
-    private final Map<String,Set<ReleaseId>> containerIds_releaseIds;
-    private final Map<String,String> deploymentIds_containerIds;
+    private final Map<String,Set<ReleaseId>> containerAliases_releaseIds;
+    private final Map<String,String> containerConfigs_deploymentIds;
 
     // package-protected for JUnit testing
     ServerConfig(
@@ -87,31 +86,32 @@ public class ServerConfig {
         this.containerDeployment = containerDeployment != null ? containerDeployment.trim() : "";
         this.containerRedirectEnabled = containerRedirectEnabled != null && Boolean.valueOf(containerRedirectEnabled.trim().toLowerCase());
         coder = new MD5();
-        containerIds_releaseIds = new TreeMap<String,Set<ReleaseId>>();
-        deploymentIds_containerIds = new LinkedHashMap<String,String>();
+        containerAliases_releaseIds = new TreeMap<String,Set<ReleaseId>>();
+        containerConfigs_deploymentIds = new TreeMap<String,String>();
         if (this.containerDeployment.length() > 0) {
             for (String unit :  this.containerDeployment.split("\\|")) {
                 String[] split = unit.split("=");
                 if (split.length == 2) {
-                    String containerId = split[0].trim();
+                    String containerAlias = split[0].trim();
                     String gav = split[1].trim();
-                    if (containerId.length() > 0 && gav.length() > 0) {
-                        Set<ReleaseId> releaseIds = containerIds_releaseIds.get(containerId);
+                    if (containerAlias.length() > 0 && gav.length() > 0) {
+                        Set<ReleaseId> releaseIds = containerAliases_releaseIds.get(containerAlias);
                         if (releaseIds == null) {
                             // the descending sort means the first releaseId will be the default (latest) version
                             releaseIds = new TreeSet<ReleaseId>(new ReleaseIdComparator(DESCENDING));
-                            containerIds_releaseIds.put(containerId, releaseIds);
+                            containerAliases_releaseIds.put(containerAlias, releaseIds);
                         }
                         ReleaseId releaseId = new ComparableReleaseId(gav);
                         releaseIds.add(releaseId);
                     }
                 }
             }
-            for (Entry<String,Set<ReleaseId>> entry : containerIds_releaseIds.entrySet()) {
-                String containerId = entry.getKey();
+            for (Entry<String,Set<ReleaseId>> entry : containerAliases_releaseIds.entrySet()) {
+                String containerAlias = entry.getKey();
                 Set<ReleaseId> releaseIds = entry.getValue();
                 if (!this.containerRedirectEnabled && releaseIds.size() > 1) {
                     // trim out all but default (latest) version per containerId
+                    // when container redirect is not enabled
                     Iterator<ReleaseId> iter = releaseIds.iterator();
                     boolean first = true;
                     while (iter.hasNext()) {
@@ -124,39 +124,57 @@ public class ServerConfig {
                     }
                 }
                 for (ReleaseId releaseId : releaseIds) {
-                    String deploymentId = createDeploymentId(containerId, releaseId);
-                    deploymentIds_containerIds.put(deploymentId, containerId);
+                    String containerConfig = createContainerConfig(containerAlias, releaseId);
+                    String deploymentId = createDeploymentId(containerAlias, releaseId);
+                    containerConfigs_deploymentIds.put(containerConfig, deploymentId);
                 }
             }
         }
-    }
-
-    public boolean hasDeploymentId(String deploymentId) {
-        return deploymentId != null && deploymentIds_containerIds.containsKey(deploymentId);
-    }
-
-    public String getContainerId(String deploymentId) {
-        return deploymentId != null ? deploymentIds_containerIds.get(deploymentId) : null;
     }
 
     public boolean isContainerRedirectEnabled() {
         return containerRedirectEnabled;
     }
 
-    public String getDefaultDeploymentId(String containerId) {
-        if (containerId != null) {
-            Set<ReleaseId> releaseIds = containerIds_releaseIds.get(containerId);
+    public boolean hasDeploymentId(String deploymentId) {
+        return deploymentId != null && containerConfigs_deploymentIds.containsValue(deploymentId);
+    }
+
+    public String getDeploymentIdForConfig(String containerConfig) {
+        return containerConfig !=null ? containerConfigs_deploymentIds.get(containerConfig) : null;
+    }
+
+    public String getDefaultDeploymentIdForAlias(String containerAlias) {
+        if (containerAlias != null) {
+            Set<ReleaseId> releaseIds = containerAliases_releaseIds.get(containerAlias);
             if (releaseIds != null && releaseIds.size() > 0) {
                 // the first releaseId will be the default (latest) version; see constructor above
                 ReleaseId defaultReleaseId = releaseIds.iterator().next();
-                return createDeploymentId(containerId, defaultReleaseId);
+                return createDeploymentId(containerAlias, defaultReleaseId);
             }
         }
         return null;
     }
 
+    private String createContainerConfig(String containerAlias, ReleaseId releaseId) {
+        return containerAlias + "=" + releaseId.toExternalForm();
+    }
+
+    /*
+     * this method needs to stay in sync with the bash logic in
+     * jboss-dockerfiles/scripts/os-kieserver-launch/added/kieserver-config.sh
+     * function getKieDeploymentId()
+     */
+    private String createDeploymentId(String containerAlias, ReleaseId releaseId) {
+        if (containerRedirectEnabled) {
+            return coder.encode(createContainerConfig(containerAlias, releaseId));
+        } else {
+            return containerAlias;
+        }
+    }
+
     public String toString() {
-        return String.format("%s[%s -> %s]",
+        return String.format("%s: serverStateFile=[%s], containerDeployment=[%s]",
                 getClass().getSimpleName(),
                 serverStateFile,
                 containerDeployment);
@@ -180,11 +198,11 @@ public class ServerConfig {
         config.addConfigItem(new KieServerConfigItem(KIE_SERVER_ID, serverId, string));
         state.setConfiguration(config);
         Set<KieContainerResource> resources = new LinkedHashSet<KieContainerResource>();
-        for (Entry<String,Set<ReleaseId>> entry : containerIds_releaseIds.entrySet()) {
-            String containerId = entry.getKey();
+        for (Entry<String,Set<ReleaseId>> entry : containerAliases_releaseIds.entrySet()) {
+            String containerAlias = entry.getKey();
             Set<ReleaseId> releaseIds = entry.getValue();
             for (ReleaseId releaseId : releaseIds) {
-                String deploymentId = createDeploymentId(containerId, releaseId);
+                String deploymentId = createDeploymentId(containerAlias, releaseId);
                 KieContainerResource container = new KieContainerResource(
                         deploymentId,
                         new org.kie.server.api.model.ReleaseId(releaseId),
@@ -194,18 +212,6 @@ public class ServerConfig {
         }
         state.setContainers(resources);
         return state;
-    }
-
-    private String createDeploymentId(String containerId, ReleaseId releaseId) {
-        if (containerRedirectEnabled) {
-            return new StringBuilder()
-                    .append(containerId)
-                    .append('_')
-                    .append(coder.encode(containerId + "=" + releaseId.toExternalForm()))
-                    .toString();
-        } else {
-            return containerId;
-        }
     }
 
     public static ServerConfig getInstance() {
