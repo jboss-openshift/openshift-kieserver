@@ -23,6 +23,7 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -97,44 +98,49 @@ public class SqlImporter {
     */
     private void scriptImporter(Connection conn) throws IOException, SQLException {
 
-        log.info("Reading SQL file: " + SQL_SCRIPT);
-        Statement stm = conn.createStatement();
-        Reader reader = new BufferedReader(new FileReader(SQL_SCRIPT));
-        StringBuffer command = new StringBuffer();
+        if (new File(SQL_SCRIPT).exists()) {
+            log.info("Reading SQL file: " + SQL_SCRIPT);
+            Statement stm = conn.createStatement();
+            Reader reader = new BufferedReader(new FileReader(SQL_SCRIPT));
+            StringBuffer command = new StringBuffer();
 
-        try {
+            try {
 
-            BufferedReader lineReader = new BufferedReader(reader);
-            String line;
-            while ((line = lineReader.readLine()) != null) {
+                BufferedReader lineReader = new BufferedReader(reader);
+                String line;
+                while ((line = lineReader.readLine()) != null) {
 
-                String trimmedCommand = line.trim();
+                    String trimmedCommand = line.trim();
 
-                if (isComment(trimmedCommand)) {
-                    log.info(trimmedCommand);
-                } else if (commandIsReady(trimmedCommand)) {
-                    command.append(line.substring(0, line.lastIndexOf(DEFAULT_COMMAND_DELIMITER)));
-                    command.append(LINE_SEPARATOR);
-                    log.info("command to execute: \n" + command);
+                    if (isComment(trimmedCommand)) {
+                        log.info(trimmedCommand);
+                    } else if (commandIsReady(trimmedCommand)) {
+                        command.append(line.substring(0, line.lastIndexOf(DEFAULT_COMMAND_DELIMITER)));
+                        command.append(LINE_SEPARATOR);
+                        log.info("command to execute: \n" + command);
 
-                    //execute sql
-                    stm.execute(String.valueOf(command+";"));
-                    conn.commit();
+                        //execute sql
+                        stm.execute(String.valueOf(command+";"));
+                        conn.commit();
 
-                    //clear the previous command
-                    command.setLength(0);
-                } else if (trimmedCommand.length() > 0) {
-                    command.append(line);
-                    command.append(LINE_SEPARATOR);
+                        //clear the previous command
+                        command.setLength(0);
+                    } else if (trimmedCommand.length() > 0) {
+                        command.append(line);
+                        command.append(LINE_SEPARATOR);
+                    }
                 }
-            }
 
-        } catch (Exception e) {
-            log.severe("Error during import script execution. Error message: " + e.getMessage());
-            conn.rollback();
-        } finally {
-            stm.close();
+            } catch (Exception e) {
+                log.severe("Error during import script execution. Error message: " + e.getMessage());
+                conn.rollback();
+            } finally {
+                stm.close();
+            }
+        } else {
+            log.warning("File " + SQL_SCRIPT + " Not found, aborting.");
         }
+
     }
 
     /*
