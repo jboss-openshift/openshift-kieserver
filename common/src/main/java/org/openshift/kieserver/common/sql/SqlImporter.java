@@ -14,7 +14,7 @@
  * permissions and limitations under the License.
  */
 
-package org.openshift.kieserver.common.sqlimporter;
+package org.openshift.kieserver.common.sql;
 
 import javax.annotation.PostConstruct;
 import javax.ejb.Singleton;
@@ -26,11 +26,15 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.logging.Logger;
 
 /**
- * Created by fspolti on 6/3/16.
+ * @author fspolti
  */
 
 @Singleton
@@ -56,7 +60,7 @@ public class SqlImporter {
             getDatabaseType();
             if (null != DB_TYPE) {
                 log.info("Starting SqlImporter...");
-                doImport(SQL_SCRIPT);
+                doImport();
             }
         }
     }
@@ -65,7 +69,7 @@ public class SqlImporter {
     * Prepare the needed variables and then call the scriptImporter to start the import task.
     * @throws SQLException for SQL related issues and Exception for any other issue
     */
-    private void doImport(String script) throws SQLException {
+    private void doImport() throws SQLException {
 
         Connection conn = getConnection();
 
@@ -80,7 +84,7 @@ public class SqlImporter {
             }
 
         } catch (Exception e) {
-            log.severe("Failed to import the script " + script + ", error message: " + e.getMessage());
+            log.severe("Failed to import the script " + SQL_SCRIPT + ", error message: " + e.getMessage());
 
         } finally {
             conn.close();
@@ -183,8 +187,7 @@ public class SqlImporter {
     }
 
     /*
-    * Returns the database type
-    * MYSQL or POSTGRESQL
+    * Set the database type for MYSQL or POSTGRESQL
     */
     private void getDatabaseType() {
 
