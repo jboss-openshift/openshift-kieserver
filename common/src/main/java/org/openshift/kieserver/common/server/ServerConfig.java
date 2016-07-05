@@ -61,6 +61,7 @@ public class ServerConfig {
     private final Coder coder;
     private final Map<String,Set<ReleaseId>> containerAliases_releaseIds;
     private final Map<String,String> containerConfigs_deploymentIds;
+    private final Map<String,String> deploymentIds_containerAliases;
 
     // package-protected for JUnit testing
     ServerConfig(
@@ -88,6 +89,7 @@ public class ServerConfig {
         coder = new MD5();
         containerAliases_releaseIds = new TreeMap<String,Set<ReleaseId>>();
         containerConfigs_deploymentIds = new TreeMap<String,String>();
+        deploymentIds_containerAliases = new TreeMap<String,String>();
         if (this.containerDeployment.length() > 0) {
             for (String unit :  this.containerDeployment.split("\\|")) {
                 String[] split = unit.split("=");
@@ -127,6 +129,7 @@ public class ServerConfig {
                     String containerConfig = createContainerConfig(containerAlias, releaseId);
                     String deploymentId = createDeploymentId(containerAlias, releaseId);
                     containerConfigs_deploymentIds.put(containerConfig, deploymentId);
+                    deploymentIds_containerAliases.put(deploymentId, containerAlias);
                 }
             }
         }
@@ -142,6 +145,10 @@ public class ServerConfig {
 
     public String getDeploymentIdForConfig(String containerConfig) {
         return containerConfig !=null ? containerConfigs_deploymentIds.get(containerConfig) : null;
+    }
+
+    public String getContainerAliasForDeploymentId(String deploymentId) {
+        return deploymentId != null ? deploymentIds_containerAliases.get(deploymentId) : null;
     }
 
     public String getDefaultDeploymentIdForAlias(String containerAlias) {

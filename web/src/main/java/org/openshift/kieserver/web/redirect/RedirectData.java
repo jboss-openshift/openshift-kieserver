@@ -25,6 +25,8 @@ public interface RedirectData {
 
     public String getDeploymentIdByCorrelationKey();
 
+    public String getDeploymentIdByJobId();
+
     public String getDeploymentIdByProcessInstanceId();
 
     public String getDeploymentIdByTaskInstanceId();

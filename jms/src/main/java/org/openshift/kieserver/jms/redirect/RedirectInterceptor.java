@@ -106,8 +106,8 @@ public class RedirectInterceptor {
             Message message = (Message)ctx.getParameters()[0];
             // this is often null for JMS
             String requestedContainerId = getRequestedContainerId(message);
-            // only if they tried to hit a specific container, and the id is not an actual deployment, do we try to redirect
-            if (requestedContainerId == null || !serverConfig.hasDeploymentId(requestedContainerId)) {
+            // only if the id is not an actual deployment, do we try to redirect
+            if (!serverConfig.hasDeploymentId(requestedContainerId)) {
                 String msgCorrId = getCorrelationId(message);
                 MarshallingFormat format = getMarshallingFormat(message, msgCorrId);
                 String configDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
@@ -116,6 +116,10 @@ public class RedirectInterceptor {
                     redirectDeploymentId = configDeploymentId;
                 } else {
                     String conversationDeploymentId = getDeploymentIdByConversationId(message);
+                    String containerAlias = serverConfig.getContainerAliasForDeploymentId(conversationDeploymentId);
+                    if (requestedContainerId != null && !requestedContainerId.equals(containerAlias)) {
+                        conversationDeploymentId = null;
+                    }
                     String defaultDeploymentId = serverConfig.getDefaultDeploymentIdForAlias(requestedContainerId);
                     Marshaller marshaller = getMarshaller(format, conversationDeploymentId, defaultDeploymentId);
                     String commandDeploymentId = getCommandDeploymentId(message, msgCorrId, marshaller);
@@ -186,6 +190,12 @@ public class RedirectInterceptor {
             if (command instanceof DescriptorCommand) {
                 DescriptorCommand dc = (DescriptorCommand)command;
                 ServiceMethod sm = serviceHelper.getServiceMethod(dc);
+                if (sm == null) {
+                    if (LOGGER.isWarnEnabled()) {
+                        LOGGER.warn(String.format("cannot find ServiceMethod match for DescriptorCommand: service=%s, method=%s", dc.getService(), dc.getMethod()));
+                    }
+                    continue;
+                }
                 commandDeploymentId = deploymentHelper.getDeploymentIdByProcessInstanceId(sm.getProcessInstanceId(dc));
                 if (serverConfig.hasDeploymentId(commandDeploymentId)) {
                     found = true;
@@ -207,6 +217,11 @@ public class RedirectInterceptor {
                     break;
                 }
                 commandDeploymentId = deploymentHelper.getDeploymentIdByWorkItemId(sm.getWorkItemId(dc));
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                commandDeploymentId = deploymentHelper.getDeploymentIdByJobId(sm.getJobId(dc));
                 if (serverConfig.hasDeploymentId(commandDeploymentId)) {
                     found = true;
                     break;
@@ -247,9 +262,8 @@ public class RedirectInterceptor {
     private String getDeploymentIdByConversationId(Message message) {
         try {
             if (message.propertyExists(CONVERSATION_ID_PROPERTY_NAME)) {
-                String property = message.getStringProperty(CONVERSATION_ID_PROPERTY_NAME);
-                ConversationId conversationId = ConversationId.fromString(property);
-                return conversationId.getContainerId();
+                String conversationId = message.getStringProperty(CONVERSATION_ID_PROPERTY_NAME);
+                return deploymentHelper.getDeploymentIdByConversationId(conversationId);
             }
         } catch (JMSException jmse) {
             // no-op

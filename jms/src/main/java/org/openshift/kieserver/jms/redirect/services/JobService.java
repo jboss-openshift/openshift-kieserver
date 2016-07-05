@@ -36,10 +36,12 @@ public class JobService extends ExecutorServiceBase {
     }
 
     @Override
+    @RedirectIndex(jobId=0)
     public void cancelRequest(long requestId) {
     }
 
     @Override
+    @RedirectIndex(jobId=0)
     public void requeueRequest(long requestId) {
     }
 
@@ -59,6 +61,7 @@ public class JobService extends ExecutorServiceBase {
     }
 
     @Override
+    @RedirectIndex(jobId=0)
     public String getRequestById(long requestId, boolean withErrors, boolean withData, String marshallingType) {
         return null;
     }

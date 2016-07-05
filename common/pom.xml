@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.openshift.kieserver</groupId>
         <artifactId>openshift-kieserver-parent</artifactId>
-        <version>1.0.2.Final</version>
+        <version>1.0.3.Final</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -33,6 +33,11 @@
         </dependency>
         <dependency>
             <groupId>org.jbpm</groupId>
+            <artifactId>jbpm-executor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jbpm</groupId>
             <artifactId>jbpm-services-api</artifactId>
             <scope>provided</scope>
         </dependency>
@@ -56,6 +61,34 @@
             <artifactId>kie-server-services-common</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- from here down only necessary for development and debugging -->
+        <!--
+        <dependency>
+            <groupId>org.kie.server</groupId>
+            <artifactId>kie-server-services-drools</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.server</groupId>
+            <artifactId>kie-server-services-jbpm</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.server</groupId>
+            <artifactId>kie-server-rest-common</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.server</groupId>
+            <artifactId>kie-server-rest-drools</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.server</groupId>
+            <artifactId>kie-server-rest-jbpm</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        -->
 
     </dependencies>
 

@@ -44,14 +44,19 @@ import org.jboss.resteasy.specimpl.UriInfoImpl;
 import org.kie.server.api.KieServerEnvironment;
 import org.kie.server.api.rest.RestURI;
 import org.kie.server.remote.rest.common.KieServerApplication;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class PathPattern {
 
     public static final String ID = RestURI.CONTAINER_ID; // id
     public static final String CORRELATION_KEY = RestURI.CORRELATION_KEY; // correlationKey
+    public static final String JOB_ID = RestURI.JOB_ID; // jobId
     public static final String P_INSTANCE_ID = RestURI.PROCESS_INST_ID; // pInstanceId
     public static final String T_INSTANCE_ID = RestURI.TASK_INSTANCE_ID; // tInstanceId
     public static final String WORK_ITEM_ID = RestURI.WORK_ITEM_ID; // workItemId
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PathPattern.class);
 
     private static final Class<?>[] JAXRS_METHODS = new Class<?>[] {
         DELETE.class, GET.class, HEAD.class, OPTIONS.class, POST.class, PUT.class
@@ -179,7 +184,12 @@ public final class PathPattern {
         }
         List<PathPattern> pathPatterns = new ArrayList<PathPattern>();
         for (String path : paths) {
-            pathPatterns.add(new PathPattern(path));
+            PathPattern pp = new PathPattern(path);
+            //System.out.println(path);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(pp.toString());
+            }
+            pathPatterns.add(pp);
         }
         return Collections.unmodifiableList(pathPatterns);
     }

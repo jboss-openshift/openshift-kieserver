@@ -16,7 +16,9 @@
 package org.openshift.kieserver.web.redirect;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -58,15 +60,15 @@ public class RedirectFilter implements Filter {
             return;
         }
         String redirect = null;
-        String redirectDeploymentId;
+        String redirectDeploymentId = null;
         RedirectData data = new ServletRedirectData(request, response, pathPatterns, deploymentHelper);
         String requestedContainerId = data.getRequestedContainerId();
-        // only if they tried to hit a specific container, and the id is not an actual deployment, do we try to redirect
-        if (requestedContainerId != null && !serverConfig.hasDeploymentId(requestedContainerId)) {
+        // only if the id is not an actual deployment, do we try to redirect
+        if (!serverConfig.hasDeploymentId(requestedContainerId)) {
             if (redirect == null) {
-                String configDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
-                if (serverConfig.hasDeploymentId(configDeploymentId)) {
-                    redirect = data.buildRedirect(configDeploymentId);
+                redirectDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
+                if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
+                    redirect = data.buildRedirect(redirectDeploymentId);
                 }
             }
             if (redirect == null) {
@@ -94,9 +96,19 @@ public class RedirectFilter implements Filter {
                 }
             }
             if (redirect == null) {
-                redirectDeploymentId = data.getDeploymentIdByConversationId();
+                redirectDeploymentId = data.getDeploymentIdByJobId();
                 if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
                     redirect = data.buildRedirect(redirectDeploymentId);
+                }
+            }
+            if (redirect == null) {
+                String conversationDeploymentId = data.getDeploymentIdByConversationId();
+                String containerAlias = serverConfig.getContainerAliasForDeploymentId(conversationDeploymentId);
+                if (requestedContainerId == null || requestedContainerId.equals(containerAlias)) {
+                    if (serverConfig.hasDeploymentId(conversationDeploymentId)) {
+                        redirectDeploymentId = conversationDeploymentId;
+                        redirect = data.buildRedirect(redirectDeploymentId);
+                    }
                 }
             }
             if (redirect == null) {
@@ -106,9 +118,16 @@ public class RedirectFilter implements Filter {
                 }
             }
         }
+        HttpServletRequest httpRequest = (HttpServletRequest)request;
+        if (redirectDeploymentId != null && request.getParameter("containerId") != null) {
+            Map<String, String[]> parameterOverrides = new HashMap<String, String[]>();
+            parameterOverrides.put("containerId", new String[]{redirectDeploymentId});
+            request = new RedirectServletRequestWrapper(httpRequest, parameterOverrides);
+            String pathInfo = httpRequest.getPathInfo();
+            redirect = httpRequest.getServletPath() + (pathInfo.startsWith("/") ? pathInfo : "/" + pathInfo);
+        }
         if (redirect != null) {
             if (LOGGER.isDebugEnabled()) {
-                HttpServletRequest httpRequest = (HttpServletRequest)request;
                 String log = String.format("doFilter redirecting from %s%s to %s", httpRequest.getServletPath(), httpRequest.getPathInfo(), redirect);
                 LOGGER.debug(log);
             }

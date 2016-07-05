@@ -59,7 +59,7 @@ public final class ServiceHelper {
                     ServiceMethod serviceMethod = new ServiceMethod(
                             service, method, redirectIndex.containerId(),
                             redirectIndex.processInstanceId(), redirectIndex.processInstanceIds(), redirectIndex.correlationKey(),
-                            redirectIndex.taskInstanceId(), redirectIndex.workItemId());
+                            redirectIndex.taskInstanceId(), redirectIndex.workItemId(), redirectIndex.jobId());
                     if (methodMap.containsKey(method)) {
                         ServiceMethod existingMethod = methodMap.get(method);
                         if (!serviceMethod.equals(existingMethod)) {

@@ -22,6 +22,8 @@ import java.util.List;
 import org.jbpm.services.api.RuntimeDataService;
 import org.jbpm.services.api.model.ProcessInstanceDesc;
 import org.jbpm.services.api.model.UserTaskInstanceDesc;
+import org.kie.api.executor.ExecutorService;
+import org.kie.api.executor.RequestInfo;
 import org.kie.internal.KieInternalServices;
 import org.kie.internal.process.CorrelationKey;
 import org.kie.internal.process.CorrelationKeyFactory;
@@ -30,10 +32,12 @@ import org.openshift.kieserver.common.id.ConversationId;
 public class DeploymentHelper {
 
     private final RuntimeDataService runtimeDataService;
+    private final ExecutorService executorService;
     private final CorrelationKeyFactory correlationKeyFactory;
 
     public DeploymentHelper() {
         runtimeDataService = ServerUtil.getAppComponentService(CAPABILITY_BPM, RuntimeDataService.class);
+        executorService = ServerUtil.getAppComponentService(CAPABILITY_BPM, ExecutorService.class);
         correlationKeyFactory = KieInternalServices.Factory.get().newCorrelationKeyFactory();
     }
 
@@ -65,6 +69,24 @@ public class DeploymentHelper {
             ProcessInstanceDesc desc = runtimeDataService.getProcessInstanceByCorrelationKey(correlationKey);
             if (desc != null) {
                 return desc.getDeploymentId();
+            }
+        }
+        return null;
+    }
+
+    public String getDeploymentIdByJobId(String jobId) {
+        jobId = trimToNull(jobId);
+        if (jobId != null) {
+            return getDeploymentIdByJobId(Long.valueOf(jobId));
+        }
+        return null;
+    }
+
+    public String getDeploymentIdByJobId(Long jobId) {
+        if (jobId != null) {
+            RequestInfo requestInfo = executorService.getRequestById(jobId);
+            if (requestInfo instanceof org.jbpm.executor.entities.RequestInfo) {
+                return ((org.jbpm.executor.entities.RequestInfo)requestInfo).getDeploymentId();
             }
         }
         return null;

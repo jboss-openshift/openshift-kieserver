@@ -18,6 +18,7 @@ package org.openshift.kieserver.web.redirect;
 import static org.openshift.kieserver.common.id.ConversationId.KIE_CONVERSATION_ID_TYPE_HEADER;
 import static org.openshift.kieserver.web.redirect.PathPattern.CORRELATION_KEY;
 import static org.openshift.kieserver.web.redirect.PathPattern.ID;
+import static org.openshift.kieserver.web.redirect.PathPattern.JOB_ID;
 import static org.openshift.kieserver.web.redirect.PathPattern.P_INSTANCE_ID;
 import static org.openshift.kieserver.web.redirect.PathPattern.T_INSTANCE_ID;
 import static org.openshift.kieserver.web.redirect.PathPattern.WORK_ITEM_ID;
@@ -72,7 +73,11 @@ public class ServletRedirectData implements RedirectData {
 
     @Override
     public String getRequestedContainerId() {
-        return pathVariables.get(ID);
+        String id = pathVariables.get(ID);
+        if (id == null) {
+            id = request.getParameter("containerId");
+        }
+        return id;
     }
 
     @Override
@@ -85,6 +90,12 @@ public class ServletRedirectData implements RedirectData {
     public String getDeploymentIdByCorrelationKey() {
         String correlationKey = pathVariables.get(CORRELATION_KEY);
         return deploymentHelper.getDeploymentIdByCorrelationKey(correlationKey);
+    }
+
+    @Override
+    public String getDeploymentIdByJobId() {
+        String jobId = pathVariables.get(JOB_ID);
+        return deploymentHelper.getDeploymentIdByJobId(jobId);
     }
 
     @Override

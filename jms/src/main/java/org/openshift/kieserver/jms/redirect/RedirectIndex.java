@@ -39,4 +39,6 @@ public @interface RedirectIndex {
 
     public int workItemId() default -1;
 
+    public int jobId() default -1;
+
 }

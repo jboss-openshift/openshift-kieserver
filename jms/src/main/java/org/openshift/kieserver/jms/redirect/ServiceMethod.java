@@ -32,6 +32,7 @@ public final class ServiceMethod {
     private final int correlationKey;
     private final int taskInstanceId;
     private final int workItemId;
+    private final int jobId;
 
     public ServiceMethod(
             String service,
@@ -41,7 +42,8 @@ public final class ServiceMethod {
             int processInstanceIds,
             int correlationKey,
             int taskInstanceId,
-            int workItemId) {
+            int workItemId,
+            int jobId) {
         this.service = service;
         this.method = method;
         this.containerId = containerId;
@@ -50,6 +52,7 @@ public final class ServiceMethod {
         this.correlationKey = correlationKey;
         this.taskInstanceId = taskInstanceId;
         this.workItemId = workItemId;
+        this.jobId = jobId;
     }
 
     public String getContainerId(DescriptorCommand dc) {
@@ -78,6 +81,10 @@ public final class ServiceMethod {
 
     public Long getWorkItemId(DescriptorCommand dc) {
         return getLong(dc, workItemId);
+    }
+
+    public Long getJobId(DescriptorCommand dc) {
+        return getLong(dc, jobId);
     }
 
     private String getString(DescriptorCommand dc, int i) {
@@ -214,6 +221,13 @@ public final class ServiceMethod {
             format.append("workItemId=%s");
             args.add(workItemId);
         }
+        if (jobId > -1) {
+            if (args.size() > 0) {
+                format.append(", ");
+            }
+            format.append("jobId=%s");
+            args.add(jobId);
+        }
         return String.format(format.toString(), args.toArray());
     }
 
@@ -229,6 +243,7 @@ public final class ServiceMethod {
         result = prime * result + ((service == null) ? 0 : service.hashCode());
         result = prime * result + taskInstanceId;
         result = prime * result + workItemId;
+        result = prime * result + jobId;
         return result;
     }
 
@@ -274,6 +289,9 @@ public final class ServiceMethod {
             return false;
         }
         if (workItemId != other.workItemId) {
+            return false;
+        }
+        if (jobId != other.jobId) {
             return false;
         }
         return true;
