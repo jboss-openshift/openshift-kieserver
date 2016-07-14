@@ -61,7 +61,8 @@ public final class PathPattern {
     private static final Class<?>[] JAXRS_METHODS = new Class<?>[] {
         DELETE.class, GET.class, HEAD.class, OPTIONS.class, POST.class, PUT.class
     };
-    private static final String EXPR = "[^/]+";
+    private static final String NUM_EXPR = "[0-9]+";
+    private static final String ANY_EXPR = "[^/]+";
 
     private final String path;
     private final Pattern pattern;
@@ -70,8 +71,12 @@ public final class PathPattern {
     // package-protected for junit testing
     PathPattern(String pathInfo) {
         this.path = pathInfo.startsWith("/") ? pathInfo : "/" + pathInfo;
-        String regex = this.path.replaceAll("\\{" + EXPR + "\\}", EXPR);
-        this.pattern = regex.contains(EXPR) ? Pattern.compile(regex) : null;
+        String regex = this.path;
+        for (String id : new String[]{JOB_ID, P_INSTANCE_ID, T_INSTANCE_ID, WORK_ITEM_ID}) {
+            regex = regex.replaceAll("\\{" + id + "\\}", NUM_EXPR);
+        }
+        regex = regex.replaceAll("\\{" + ANY_EXPR + "\\}", ANY_EXPR);
+        this.pattern = regex.contains(NUM_EXPR) || regex.contains(ANY_EXPR) ? Pattern.compile(regex) : null;
         String undPath = this.path.replaceAll("\\{", "_").replaceAll("\\}", "");
         List<PathSegment> undSegs = PathSegmentImpl.parseSegments(undPath, false);
         for (int i=0; i < undSegs.size(); i++) {
@@ -185,7 +190,7 @@ public final class PathPattern {
         List<PathPattern> pathPatterns = new ArrayList<PathPattern>();
         for (String path : paths) {
             PathPattern pp = new PathPattern(path);
-            //System.out.println(path);
+            //System.out.println(pp);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(pp.toString());
             }

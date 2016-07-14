@@ -150,11 +150,7 @@ public class DeploymentHelper {
     public String getDeploymentIdByTaskInstanceId(String tInstanceId) {
         tInstanceId = trimToNull(tInstanceId);
         if (tInstanceId != null) {
-            // this pattern unfortunately matches "pot-owners", "admins", and "owners"
-            // in addition to actual tIntanceId, so we have to do a number check
-            try {
-                return getDeploymentIdByTaskInstanceId(Long.valueOf(tInstanceId));
-            } catch (NumberFormatException nfe) {}
+            return getDeploymentIdByTaskInstanceId(Long.valueOf(tInstanceId));
         }
         return null;
     }

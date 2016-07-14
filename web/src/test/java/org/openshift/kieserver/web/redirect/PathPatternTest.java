@@ -37,6 +37,16 @@ public class PathPatternTest {
     }
 
     @Test
+    public void testNumbers() {
+        PathPattern pp = new PathPattern("foo/{id}/bar/{pInstanceId}/pizza");
+        assertTrue(pp.matches("/foo/MyId/bar/42/pizza"));
+        assertFalse(pp.matches("/foo/MyId/bar/fortytwo/pizza"));
+        assertFalse(pp.matches("/foo/MyId/bar/4tytwo/pizza"));
+        assertFalse(pp.matches("/foo/MyId/bar/forty2/pizza"));
+        assertFalse(pp.matches("/foo/MyId/bar/forty42two/pizza"));
+    }
+
+    @Test
     public void testBuildPath() {
         PathPattern pp = new PathPattern("foo/{id}/bar/{pInstanceId}/pizza");
         Map<String,String> vars = new HashMap<String,String>();
