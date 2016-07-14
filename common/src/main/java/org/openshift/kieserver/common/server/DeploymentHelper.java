@@ -17,7 +17,10 @@ package org.openshift.kieserver.common.server;
 
 import static org.openshift.kieserver.common.server.ServerUtil.CAPABILITY_BPM;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.TreeSet;
 
 import org.jbpm.services.api.RuntimeDataService;
 import org.jbpm.services.api.model.ProcessInstanceDesc;
@@ -100,6 +103,20 @@ public class DeploymentHelper {
         return null;
     }
 
+    public String getDeploymentIdByProcessInstanceIds(String[] pInstanceIds) {
+        if (pInstanceIds != null) {
+            List<Long> list = new ArrayList<Long>(pInstanceIds.length);
+            for (String pInstanceId : pInstanceIds) {
+                pInstanceId = trimToNull(pInstanceId);
+                if (pInstanceId != null) {
+                    list.add(Long.valueOf(pInstanceId));
+                }
+            }
+            return getDeploymentIdByProcessInstanceIds(list);
+        }
+        return null;
+    }
+
     public String getDeploymentIdByProcessInstanceId(Long pInstanceId) {
         if (pInstanceId != null) {
             ProcessInstanceDesc desc = runtimeDataService.getProcessInstanceById(pInstanceId);
@@ -112,10 +129,18 @@ public class DeploymentHelper {
 
     public String getDeploymentIdByProcessInstanceIds(List<Long> pInstanceIds) {
         if (pInstanceIds != null) {
+            TreeSet<Long> set = new TreeSet<Long>();
             for (Long pInstanceId : pInstanceIds) {
-                String containerId = getDeploymentIdByProcessInstanceId(pInstanceId);
-                if (containerId != null) {
-                    return containerId;
+                if (pInstanceId != null) {
+                    set.add(pInstanceId);
+                }
+            }
+            // using a descending iterator so the most current process instance gets checked first
+            Iterator<Long> iter = set.descendingIterator();
+            while (iter.hasNext()) {
+                String deploymentId = getDeploymentIdByProcessInstanceId(iter.next());
+                if (deploymentId != null) {
+                    return deploymentId;
                 }
             }
         }
@@ -125,7 +150,11 @@ public class DeploymentHelper {
     public String getDeploymentIdByTaskInstanceId(String tInstanceId) {
         tInstanceId = trimToNull(tInstanceId);
         if (tInstanceId != null) {
-            return getDeploymentIdByTaskInstanceId(Long.valueOf(tInstanceId));
+            // this pattern unfortunately matches "pot-owners", "admins", and "owners"
+            // in addition to actual tIntanceId, so we have to do a number check
+            try {
+                return getDeploymentIdByTaskInstanceId(Long.valueOf(tInstanceId));
+            } catch (NumberFormatException nfe) {}
         }
         return null;
     }

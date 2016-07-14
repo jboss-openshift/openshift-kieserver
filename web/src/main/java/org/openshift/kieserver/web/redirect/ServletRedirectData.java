@@ -101,7 +101,12 @@ public class ServletRedirectData implements RedirectData {
     @Override
     public String getDeploymentIdByProcessInstanceId() {
         String pInstanceId = pathVariables.get(P_INSTANCE_ID);
-        return deploymentHelper.getDeploymentIdByProcessInstanceId(pInstanceId);
+        String deploymentId = deploymentHelper.getDeploymentIdByProcessInstanceId(pInstanceId);
+        if (deploymentId == null) {
+            String[] instanceId = request.getParameterValues("instanceId");
+            deploymentId = deploymentHelper.getDeploymentIdByProcessInstanceIds(instanceId);
+        }
+        return deploymentId;
     }
 
     @Override

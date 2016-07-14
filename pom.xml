@@ -35,7 +35,7 @@
 
     <groupId>org.openshift.kieserver</groupId>
     <artifactId>openshift-kieserver-parent</artifactId>
-    <version>1.0.3.Final</version>
+    <version>1.0.4.Final</version>
     <packaging>pom</packaging>
 
     <name>OpenShift KIE Server - Parent</name>
