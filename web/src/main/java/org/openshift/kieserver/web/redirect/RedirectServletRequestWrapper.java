@@ -15,23 +15,56 @@
  */
 package org.openshift.kieserver.web.redirect;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-
 public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
 
     private final HttpServletRequest request;
+    private final Set<String> headerIgnores;
     private final Map<String, String[]> parameterOverrides;
 
-    public RedirectServletRequestWrapper(HttpServletRequest request, Map<String, String[]> parameterOverrides) {
+    public RedirectServletRequestWrapper(HttpServletRequest request, Set<String> headerIgnores, Map<String, String[]> parameterOverrides) {
         super(request);
         this.request = request;
+        this.headerIgnores = headerIgnores;
         this.parameterOverrides = parameterOverrides;
+    }
+
+    @Override
+    public String getHeader(String name) {
+        if (name != null && headerIgnores.contains(name.toUpperCase())) {
+            return null;
+        }
+        return request.getHeader(name);
+    }
+
+    @Override
+    public Enumeration<String> getHeaderNames() {
+        Collection<String> coll = new ArrayList<String>();
+        Enumeration<String> names = request.getHeaderNames();
+        while (names.hasMoreElements()) {
+            String name = names.nextElement();
+            if (!headerIgnores.contains(name.toUpperCase())) {
+                coll.add(name);
+            }
+        }
+        return Collections.enumeration(coll);
+    }
+
+    @Override
+    public Enumeration<String> getHeaders(String name) {
+        if (name != null && headerIgnores.contains(name.toUpperCase())) {
+            return Collections.emptyEnumeration();
+        }
+        return request.getHeaders(name);
     }
 
     @Override
@@ -62,14 +95,17 @@ public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
     public String getQueryString() {
         // TODO: fix regex so we don't need to add the preceding question mark
         String queryString = request.getQueryString();
-        if (!queryString.startsWith("?")) {
-            queryString = "?" + queryString;
+        if (queryString != null) {
+            if (!queryString.startsWith("?")) {
+                queryString = "?" + queryString;
+            }
+            for (String name : parameterOverrides.keySet()) {
+                String value = getParameter(name);
+                queryString = queryString.replaceAll("(?<=[?&;])" + name + "=[^&;]*", name + "=" + value);
+            }
+            return queryString.startsWith("?") ? queryString.substring(1, queryString.length()) : queryString;
         }
-        for (String name : parameterOverrides.keySet()) {
-            String value = getParameter(name);
-            queryString = queryString.replaceAll("(?<=[?&;])" + name + "=[^&;]*", name + "=" + value);
-        }
-        return queryString.startsWith("?") ? queryString.substring(1, queryString.length()) : queryString;
+        return null;
     }
 
 }

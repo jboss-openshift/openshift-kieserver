@@ -143,7 +143,10 @@ public class RedirectInterceptor {
                         String propName = (String)propNames.nextElement();
                         properties.put(propName, message.getObjectProperty(propName));
                     }
+                    // override the container id with the redirected one
                     properties.put(CONTAINER_ID_PROPERTY_NAME, redirectDeploymentId);
+                    // filtering out the request conversation id will cause upstream code to always return an up-to-date one in the response
+                    properties.remove(CONVERSATION_ID_PROPERTY_NAME);
                     message.clearProperties();
                     for (Entry<String,Object> property : properties.entrySet()) {
                         message.setObjectProperty(property.getKey(), property.getValue());
