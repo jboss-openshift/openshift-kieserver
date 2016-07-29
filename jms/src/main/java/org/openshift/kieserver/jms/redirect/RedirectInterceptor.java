@@ -104,25 +104,26 @@ public class RedirectInterceptor {
     public Object doIntercept(InvocationContext ctx) throws Exception {
         if (containerRedirectEnabled && ON_MESSAGE.equals(ctx.getMethod().getName())) {
             Message message = (Message)ctx.getParameters()[0];
+            String redirectDeploymentId = null;
             // this is often null for JMS
             String requestedContainerId = getRequestedContainerId(message);
             // only if the id is not an actual deployment, do we try to redirect
             if (!serverConfig.hasDeploymentId(requestedContainerId)) {
                 String msgCorrId = getCorrelationId(message);
                 MarshallingFormat format = getMarshallingFormat(message, msgCorrId);
-                String configDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
-                String redirectDeploymentId = null;
+                String configDeploymentId = serverConfig.getDeploymentIdForContainerConfig(requestedContainerId);
                 if (serverConfig.hasDeploymentId(configDeploymentId)) {
                     redirectDeploymentId = configDeploymentId;
                 } else {
                     String conversationDeploymentId = getDeploymentIdByConversationId(message);
                     String containerAlias = serverConfig.getContainerAliasForDeploymentId(conversationDeploymentId);
-                    if (requestedContainerId != null && !requestedContainerId.equals(containerAlias)) {
+                    String containerConfig = serverConfig.getContainerConfigForDeploymentId(conversationDeploymentId);
+                    if (requestedContainerId != null && !requestedContainerId.equals(containerAlias) && !requestedContainerId.equals(containerConfig)) {
                         conversationDeploymentId = null;
                     }
                     String defaultDeploymentId = serverConfig.getDefaultDeploymentIdForAlias(requestedContainerId);
                     Marshaller marshaller = getMarshaller(format, conversationDeploymentId, defaultDeploymentId);
-                    String commandDeploymentId = getCommandDeploymentId(message, msgCorrId, marshaller);
+                    String commandDeploymentId = getCommandDeploymentId(message, msgCorrId, marshaller, conversationDeploymentId);
                     if (serverConfig.hasDeploymentId(commandDeploymentId)) {
                         redirectDeploymentId = commandDeploymentId;
                     } else if (serverConfig.hasDeploymentId(conversationDeploymentId)) {
@@ -135,21 +136,6 @@ public class RedirectInterceptor {
                     if (LOGGER.isDebugEnabled()) {
                         String log = String.format("%s redirecting to %s", ON_MESSAGE, redirectDeploymentId);
                         LOGGER.debug(log);
-                    }
-                    // properties are read-only unless you clear them first
-                    Map<String,Object> properties = new HashMap<String,Object>();
-                    Enumeration<?> propNames = message.getPropertyNames();
-                    while (propNames.hasMoreElements()) {
-                        String propName = (String)propNames.nextElement();
-                        properties.put(propName, message.getObjectProperty(propName));
-                    }
-                    // override the container id with the redirected one
-                    properties.put(CONTAINER_ID_PROPERTY_NAME, redirectDeploymentId);
-                    // filtering out the request conversation id will cause upstream code to always return an up-to-date one in the response
-                    properties.remove(CONVERSATION_ID_PROPERTY_NAME);
-                    message.clearProperties();
-                    for (Entry<String,Object> property : properties.entrySet()) {
-                        message.setObjectProperty(property.getKey(), property.getValue());
                     }
                     boolean resetText = false;
                     Marshaller marshaller = getMarshaller(format, redirectDeploymentId);
@@ -181,11 +167,30 @@ public class RedirectInterceptor {
                     }
                 }
             }
+            if (redirectDeploymentId != null || getConversationId(message) != null) {
+                // properties are read-only unless you clear them first
+                Map<String,Object> properties = new HashMap<String,Object>();
+                Enumeration<?> propNames = message.getPropertyNames();
+                while (propNames.hasMoreElements()) {
+                    String propName = (String)propNames.nextElement();
+                    properties.put(propName, message.getObjectProperty(propName));
+                }
+                if (redirectDeploymentId != null) {
+                    // override the container id with the redirected one
+                    properties.put(CONTAINER_ID_PROPERTY_NAME, redirectDeploymentId);
+                }
+                // filtering out the request conversation id will cause upstream code to always return an up-to-date one in the response
+                properties.remove(CONVERSATION_ID_PROPERTY_NAME);
+                message.clearProperties();
+                for (Entry<String,Object> property : properties.entrySet()) {
+                    message.setObjectProperty(property.getKey(), property.getValue());
+                }
+            }
         }
         return ctx.proceed();
     }
 
-    private String getCommandDeploymentId(Message message, String msgCorrId, Marshaller marshaller) {
+    private String getCommandDeploymentId(Message message, String msgCorrId, Marshaller marshaller, String conversationDeploymentId) {
         boolean found = false;
         String commandDeploymentId = null;
         CommandScript script = unmarshallRequest(message, msgCorrId, marshaller);
@@ -194,8 +199,8 @@ public class RedirectInterceptor {
                 DescriptorCommand dc = (DescriptorCommand)command;
                 ServiceMethod sm = serviceHelper.getServiceMethod(dc);
                 if (sm == null) {
-                    if (LOGGER.isWarnEnabled()) {
-                        LOGGER.warn(String.format("cannot find ServiceMethod match for DescriptorCommand: service=%s, method=%s", dc.getService(), dc.getMethod()));
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace(String.format("cannot find ServiceMethod match for DescriptorCommand: service=%s, method=%s", dc.getService(), dc.getMethod()));
                     }
                     continue;
                 }
@@ -235,7 +240,13 @@ public class RedirectInterceptor {
                     found = true;
                     break;
                 }
-                commandDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
+                commandDeploymentId = serverConfig.getDeploymentIdForContainerConfig(requestedContainerId);
+                if (serverConfig.hasDeploymentId(commandDeploymentId)) {
+                    found = true;
+                    break;
+                }
+                // we need to check with the conversation before we go with the default below
+                commandDeploymentId = conversationDeploymentId;
                 if (serverConfig.hasDeploymentId(commandDeploymentId)) {
                     found = true;
                     break;
@@ -262,16 +273,21 @@ public class RedirectInterceptor {
         return containerId;
     }
 
-    private String getDeploymentIdByConversationId(Message message) {
+    private String getConversationId(Message message) {
+        String conversationId = null;
         try {
             if (message.propertyExists(CONVERSATION_ID_PROPERTY_NAME)) {
-                String conversationId = message.getStringProperty(CONVERSATION_ID_PROPERTY_NAME);
-                return deploymentHelper.getDeploymentIdByConversationId(conversationId);
+                conversationId = message.getStringProperty(CONVERSATION_ID_PROPERTY_NAME);
             }
         } catch (JMSException jmse) {
             // no-op
         }
-        return null;
+        return conversationId;
+    }
+
+    private String getDeploymentIdByConversationId(Message message) {
+        String conversationId = getConversationId(message);
+        return deploymentHelper.getDeploymentIdByConversationId(conversationId);
     }
 
     private String getCorrelationId(Message message) {

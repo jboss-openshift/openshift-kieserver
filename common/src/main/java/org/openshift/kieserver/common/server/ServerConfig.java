@@ -61,6 +61,7 @@ public class ServerConfig {
     private final Coder coder;
     private final Map<String,Set<ReleaseId>> containerAliases_releaseIds;
     private final Map<String,String> containerConfigs_deploymentIds;
+    private final Map<String,String> deploymentIds_containerConfigs;
     private final Map<String,String> deploymentIds_containerAliases;
 
     // package-protected for JUnit testing
@@ -89,6 +90,7 @@ public class ServerConfig {
         coder = new MD5();
         containerAliases_releaseIds = new TreeMap<String,Set<ReleaseId>>();
         containerConfigs_deploymentIds = new TreeMap<String,String>();
+        deploymentIds_containerConfigs = new TreeMap<String,String>();
         deploymentIds_containerAliases = new TreeMap<String,String>();
         if (this.containerDeployment.length() > 0) {
             for (String unit :  this.containerDeployment.split("\\|")) {
@@ -129,6 +131,7 @@ public class ServerConfig {
                     String containerConfig = createContainerConfig(containerAlias, releaseId);
                     String deploymentId = createDeploymentId(containerAlias, releaseId);
                     containerConfigs_deploymentIds.put(containerConfig, deploymentId);
+                    deploymentIds_containerConfigs.put(deploymentId, containerConfig);
                     deploymentIds_containerAliases.put(deploymentId, containerAlias);
                 }
             }
@@ -143,8 +146,12 @@ public class ServerConfig {
         return deploymentId != null && containerConfigs_deploymentIds.containsValue(deploymentId);
     }
 
-    public String getDeploymentIdForConfig(String containerConfig) {
+    public String getDeploymentIdForContainerConfig(String containerConfig) {
         return containerConfig !=null ? containerConfigs_deploymentIds.get(containerConfig) : null;
+    }
+
+    public String getContainerConfigForDeploymentId(String deploymentId) {
+        return deploymentId !=null ? deploymentIds_containerConfigs.get(deploymentId) : null;
     }
 
     public String getContainerAliasForDeploymentId(String deploymentId) {

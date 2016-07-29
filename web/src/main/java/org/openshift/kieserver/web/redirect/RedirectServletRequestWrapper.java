@@ -31,11 +31,19 @@ public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
     private final Set<String> headerIgnores;
     private final Map<String, String[]> parameterOverrides;
 
+    public RedirectServletRequestWrapper(HttpServletRequest request) {
+        this(request, null);
+    }
+
+    public RedirectServletRequestWrapper(HttpServletRequest request, Set<String> headerIgnores) {
+        this(request, headerIgnores, null);
+    }
+
     public RedirectServletRequestWrapper(HttpServletRequest request, Set<String> headerIgnores, Map<String, String[]> parameterOverrides) {
         super(request);
         this.request = request;
-        this.headerIgnores = headerIgnores;
-        this.parameterOverrides = parameterOverrides;
+        this.headerIgnores = (headerIgnores != null ? headerIgnores : Collections.<String>emptySet());
+        this.parameterOverrides = (parameterOverrides != null ? parameterOverrides : Collections.<String, String[]>emptyMap());
     }
 
     @Override
@@ -93,9 +101,9 @@ public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
 
     @Override
     public String getQueryString() {
-        // TODO: fix regex so we don't need to add the preceding question mark
         String queryString = request.getQueryString();
-        if (queryString != null) {
+        if (queryString != null && !parameterOverrides.isEmpty()) {
+            // TODO: fix regex so we don't need to add the preceding question mark
             if (!queryString.startsWith("?")) {
                 queryString = "?" + queryString;
             }
@@ -105,7 +113,7 @@ public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
             }
             return queryString.startsWith("?") ? queryString.substring(1, queryString.length()) : queryString;
         }
-        return null;
+        return queryString;
     }
 
 }

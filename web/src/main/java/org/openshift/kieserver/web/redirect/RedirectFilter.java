@@ -76,7 +76,7 @@ public class RedirectFilter implements Filter {
         // only if the id is not an actual deployment, do we try to redirect
         if (!serverConfig.hasDeploymentId(requestedContainerId)) {
             if (redirect == null) {
-                redirectDeploymentId = serverConfig.getDeploymentIdForConfig(requestedContainerId);
+                redirectDeploymentId = serverConfig.getDeploymentIdForContainerConfig(requestedContainerId);
                 if (serverConfig.hasDeploymentId(redirectDeploymentId)) {
                     redirect = data.buildRedirect(redirectDeploymentId);
                 }
@@ -114,7 +114,8 @@ public class RedirectFilter implements Filter {
             if (redirect == null) {
                 String conversationDeploymentId = data.getDeploymentIdByConversationId();
                 String containerAlias = serverConfig.getContainerAliasForDeploymentId(conversationDeploymentId);
-                if (requestedContainerId == null || requestedContainerId.equals(containerAlias)) {
+                String containerConfig = serverConfig.getContainerConfigForDeploymentId(conversationDeploymentId);
+                if (requestedContainerId == null || requestedContainerId.equals(containerAlias) || requestedContainerId.equals(containerConfig)) {
                     if (serverConfig.hasDeploymentId(conversationDeploymentId)) {
                         redirectDeploymentId = conversationDeploymentId;
                         redirect = data.buildRedirect(redirectDeploymentId);
@@ -153,6 +154,9 @@ public class RedirectFilter implements Filter {
             }
             request.getRequestDispatcher(redirect).forward(request, response);
         } else {
+            // We always need to filter out the X-KIE-ConversationId request header so
+            // that the real one is always returned in the response by the upstream code.
+            request = new RedirectServletRequestWrapper(httpRequest, HEADER_IGNORES);
             chain.doFilter(request, response);
         }
     }
