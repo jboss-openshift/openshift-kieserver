@@ -31,6 +31,7 @@ public class ConversationIdTest {
         if (ConversationId.isSupported()) {
             assertNotNull(conversationId);
             assertEquals("myContainerId", conversationId.getContainerId());
+            assertEquals(HEADER, conversationId.toString());
         } else {
             assertNull(conversationId);
         }

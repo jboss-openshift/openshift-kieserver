@@ -15,41 +15,62 @@
  */
 package org.openshift.kieserver.web.redirect;
 
+import static org.openshift.kieserver.common.id.ConversationId.KIE_CONVERSATION_ID_TYPE_HEADER;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+
+import org.kie.server.api.KieServerEnvironment;
+import org.kie.server.api.model.ReleaseId;
+import org.kie.server.services.impl.KieContainerInstanceImpl;
+import org.kie.server.services.impl.KieServerLocator;
+import org.openshift.kieserver.common.id.ConversationId;
+
 public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
 
+    private static final boolean CONVERSATION_ID_SUPPORTED = ConversationId.isSupported();
+
     private final HttpServletRequest request;
-    private final Set<String> headerIgnores;
+    private final String conversationId;
     private final Map<String, String[]> parameterOverrides;
 
     public RedirectServletRequestWrapper(HttpServletRequest request) {
         this(request, null);
     }
 
-    public RedirectServletRequestWrapper(HttpServletRequest request, Set<String> headerIgnores) {
-        this(request, headerIgnores, null);
+    public RedirectServletRequestWrapper(HttpServletRequest request, String redirectDeploymentId) {
+        this(request, redirectDeploymentId, null);
     }
 
-    public RedirectServletRequestWrapper(HttpServletRequest request, Set<String> headerIgnores, Map<String, String[]> parameterOverrides) {
+    public RedirectServletRequestWrapper(HttpServletRequest request, String redirectDeploymentId, Map<String, String[]> parameterOverrides) {
         super(request);
         this.request = request;
-        this.headerIgnores = (headerIgnores != null ? headerIgnores : Collections.<String>emptySet());
+        String redirectConversationId = null;
+        if (redirectDeploymentId != null && CONVERSATION_ID_SUPPORTED) {
+            KieContainerInstanceImpl container = KieServerLocator.getInstance().getServerRegistry().getContainer(redirectDeploymentId);
+            if (container != null) {
+                ReleaseId releaseId = container.getResource().getResolvedReleaseId();
+                if (releaseId == null) {
+                    releaseId = container.getResource().getReleaseId();
+                }
+                redirectConversationId = ConversationId.from(KieServerEnvironment.getServerId(), redirectDeploymentId, releaseId).toString();
+            }
+        }
+        this.conversationId = redirectConversationId;
         this.parameterOverrides = (parameterOverrides != null ? parameterOverrides : Collections.<String, String[]>emptyMap());
     }
 
     @Override
     public String getHeader(String name) {
-        if (name != null && headerIgnores.contains(name.toUpperCase())) {
-            return null;
+        if (KIE_CONVERSATION_ID_TYPE_HEADER.equalsIgnoreCase(name)) {
+            return conversationId;
         }
         return request.getHeader(name);
     }
@@ -57,19 +78,31 @@ public class RedirectServletRequestWrapper extends HttpServletRequestWrapper {
     @Override
     public Enumeration<String> getHeaderNames() {
         Collection<String> coll = new ArrayList<String>();
+        boolean conversationIdAdded = false;
         Enumeration<String> names = request.getHeaderNames();
         while (names.hasMoreElements()) {
             String name = names.nextElement();
-            if (!headerIgnores.contains(name.toUpperCase())) {
+            if (KIE_CONVERSATION_ID_TYPE_HEADER.equalsIgnoreCase(name)) {
+                if (conversationId != null) {
+                    coll.add(name);
+                    conversationIdAdded = true;
+                }
+            } else {
                 coll.add(name);
             }
+        }
+        if (!conversationIdAdded && conversationId != null) {
+            coll.add(KIE_CONVERSATION_ID_TYPE_HEADER);
         }
         return Collections.enumeration(coll);
     }
 
     @Override
     public Enumeration<String> getHeaders(String name) {
-        if (name != null && headerIgnores.contains(name.toUpperCase())) {
+        if (KIE_CONVERSATION_ID_TYPE_HEADER.equalsIgnoreCase(name)) {
+            if (conversationId != null) {
+                return Collections.enumeration(Collections.singleton(conversationId));
+            }
             return Collections.emptyEnumeration();
         }
         return request.getHeaders(name);

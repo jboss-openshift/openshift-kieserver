@@ -15,14 +15,10 @@
  */
 package org.openshift.kieserver.web.redirect;
 
-import static org.openshift.kieserver.common.id.ConversationId.KIE_CONVERSATION_ID_TYPE_HEADER;
-
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -40,12 +36,6 @@ import org.slf4j.LoggerFactory;
 public class RedirectFilter implements Filter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedirectFilter.class);
-
-    // filtering out the request conversation id will cause upstream code to always return an up-to-date one in the response
-    private static final Set<String> HEADER_IGNORES = new HashSet<String>();
-    static {
-        HEADER_IGNORES.add(KIE_CONVERSATION_ID_TYPE_HEADER.toUpperCase());
-    }
 
     private ServerConfig serverConfig = null;
     private boolean containerRedirectEnabled = false;
@@ -130,22 +120,27 @@ public class RedirectFilter implements Filter {
             }
         }
         HttpServletRequest httpRequest = (HttpServletRequest)request;
-        boolean hasContainerIdRequestParameter = httpRequest.getParameter("containerId") != null;
-        boolean hasConversationIdRequestHeader = httpRequest.getHeader(KIE_CONVERSATION_ID_TYPE_HEADER) != null;
-        if (redirectDeploymentId != null && (hasContainerIdRequestParameter || hasConversationIdRequestHeader)) {
-            Map<String, String[]> parameterOverrides = new HashMap<String, String[]>();
-            if (hasContainerIdRequestParameter) {
+        if (redirectDeploymentId != null) {
+            if (httpRequest.getParameter("containerId") != null) {
+                Map<String, String[]> parameterOverrides = new HashMap<String, String[]>();
                 // override the container id with the redirected one
                 parameterOverrides.put("containerId", new String[]{redirectDeploymentId});
+                request = new RedirectServletRequestWrapper(httpRequest, redirectDeploymentId, parameterOverrides);
+            } else {
+                request = new RedirectServletRequestWrapper(httpRequest, redirectDeploymentId);
             }
-            request = new RedirectServletRequestWrapper(httpRequest, HEADER_IGNORES, parameterOverrides);
             if (redirect == null) {
-                // We have to redirect because we need to either override the containerId request parameter
-                // or filter out the X-KIE-ConversationId request header (after we've already inspected it),
-                // but we only want to create a new redirect path if we haven't already built one above.
+                // We have to redirect because we need to override the containerId request parameter and filter the X-KIE-ConversationId
+                // request header, but we only want to create a new redirect path if we haven't already built one above.
                 String pathInfo = httpRequest.getPathInfo();
                 redirect = httpRequest.getServletPath() + (pathInfo.startsWith("/") ? pathInfo : "/" + pathInfo);
             }
+        } else {
+            // We always need to filter the X-KIE-ConversationId request header.
+            if (!serverConfig.hasDeploymentId(requestedContainerId)) {
+                requestedContainerId = null;
+            }
+            request = new RedirectServletRequestWrapper(httpRequest, requestedContainerId);
         }
         if (redirect != null) {
             if (LOGGER.isDebugEnabled()) {
@@ -154,9 +149,6 @@ public class RedirectFilter implements Filter {
             }
             request.getRequestDispatcher(redirect).forward(request, response);
         } else {
-            // We always need to filter out the X-KIE-ConversationId request header so
-            // that the real one is always returned in the response by the upstream code.
-            request = new RedirectServletRequestWrapper(httpRequest, HEADER_IGNORES);
             chain.doFilter(request, response);
         }
     }

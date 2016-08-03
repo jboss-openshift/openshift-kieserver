@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import org.kie.server.api.KieServerConstants;
 import org.kie.server.api.KieServerEnvironment;
 import org.kie.server.api.Version;
+import org.kie.server.api.model.ReleaseId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +34,13 @@ public final class ConversationId {
     // org.kie.server.api.KieServerConstants.KIE_CONVERSATION_ID_TYPE_HEADER exists in 6.4+
     public static final String KIE_CONVERSATION_ID_TYPE_HEADER;
 
+    private static final Method FROM;
     private static final Method FROM_STRING;
     private static final Method GET_CONTAINER_ID;
 
     static {
         String kieConversationIdTypeHeader = null;
+        Method from = null;
         Method fromString = null;
         Method getContainerId = null;
         if (isSupported()) {
@@ -46,6 +49,8 @@ public final class ConversationId {
                 field.setAccessible(true);
                 kieConversationIdTypeHeader = (String)field.get(null);
                 Class<?> clazz = Class.forName("org.kie.server.api.ConversationId");
+                from = clazz.getDeclaredMethod("from", String.class, String.class, ReleaseId.class);
+                from.setAccessible(true);
                 fromString = clazz.getDeclaredMethod("fromString", String.class);
                 fromString.setAccessible(true);
                 getContainerId = clazz.getDeclaredMethod("getContainerId");
@@ -58,6 +63,7 @@ public final class ConversationId {
             kieConversationIdTypeHeader = "X-KIE-ConversationId";
         }
         KIE_CONVERSATION_ID_TYPE_HEADER = kieConversationIdTypeHeader;
+        FROM = from;
         FROM_STRING = fromString;
         GET_CONTAINER_ID = getContainerId;
     }
@@ -86,6 +92,20 @@ public final class ConversationId {
         return null;
     }
 
+    public static ConversationId from(String kieServerId, String containerId, ReleaseId releaseId) {
+        if (FROM != null) {
+            try {
+                Object conversationId = FROM.invoke(null, kieServerId, containerId, releaseId);
+                return conversationId != null ? new ConversationId(conversationId) : null;
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
+    }
+
     public static ConversationId fromString(String conversationIdString) {
         if (FROM_STRING != null) {
             try {
@@ -99,4 +119,9 @@ public final class ConversationId {
         }
         return null;
     }
+
+    public String toString() {
+        return conversationId != null ? conversationId.toString() : null;
+    }
+
 }
