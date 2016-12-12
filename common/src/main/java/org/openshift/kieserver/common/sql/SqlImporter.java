@@ -16,23 +16,23 @@
 
 package org.openshift.kieserver.common.sql;
 
-import javax.annotation.PostConstruct;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.sql.DataSource;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
+
+import javax.annotation.PostConstruct;
+import javax.ejb.Singleton;
+import javax.ejb.Startup;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.sql.DataSource;
 
 /**
  * @author fspolti
@@ -101,14 +101,13 @@ public class SqlImporter {
         if (new File(SQL_SCRIPT).exists()) {
             log.info("Reading SQL file: " + SQL_SCRIPT);
             Statement stm = conn.createStatement();
-            Reader reader = new BufferedReader(new FileReader(SQL_SCRIPT));
+            BufferedReader reader = new BufferedReader(new FileReader(SQL_SCRIPT));
             StringBuffer command = new StringBuffer();
 
             try {
 
-                BufferedReader lineReader = new BufferedReader(reader);
                 String line;
-                while ((line = lineReader.readLine()) != null) {
+                while ((line = reader.readLine()) != null) {
 
                     String trimmedCommand = line.trim();
 
@@ -135,6 +134,7 @@ public class SqlImporter {
                 log.severe("Error during import script execution. Error message: " + e.getMessage());
                 conn.rollback();
             } finally {
+                reader.close();
                 stm.close();
             }
         } else {
