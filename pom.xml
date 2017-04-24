@@ -27,12 +27,12 @@
     <parent>
         <groupId>org.kie</groupId>
         <artifactId>kie-parent-with-dependencies</artifactId>
-        <version>6.4.0.Final-redhat-13</version>
+        <version>6.5.0.Final-redhat-7</version>
     </parent>
 
     <groupId>org.openshift.kieserver</groupId>
     <artifactId>openshift-kieserver-parent</artifactId>
-    <version>1.1.0.Final</version>
+    <version>1.2.0.Final</version>
     <packaging>pom</packaging>
 
     <name>OpenShift KIE Server - Parent</name>
@@ -102,8 +102,7 @@
             </snapshots>
           </repository>
         <repository>
-            <id>jboss-ga-repository</id>
-            <name>JBoss GA Tech Preview Maven Repository</name>
+            <id>redhat-tp-repository</id>
             <url>http://maven.repository.redhat.com/techpreview/all</url>
             <layout>default</layout>
             <releases>
@@ -143,8 +142,7 @@
             </snapshots>
         </pluginRepository>
         <pluginRepository>
-            <id>jboss-ga-plugin-repository</id>
-            <name>JBoss 6 Maven Plugin Repository</name>
+            <id>redhat-tp-plugin-repository</id>
             <url>http://maven.repository.redhat.com/techpreview/all</url>
             <layout>default</layout>
             <releases>

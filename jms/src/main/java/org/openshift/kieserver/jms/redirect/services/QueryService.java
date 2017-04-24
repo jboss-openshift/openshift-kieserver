@@ -39,24 +39,24 @@ public class QueryService extends RuntimeDataServiceBase {
     }
 
     @Override
-    public ProcessInstanceList getProcessInstances(List<Integer> status, String initiator, String processName, Integer page, Integer pageSize) {
+    public ProcessInstanceList getProcessInstances(List<Integer> status, String initiator, String processName, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
-    public ProcessInstanceList getProcessInstancesByProcessId(String processId, List<Integer> status, String initiator, Integer page, Integer pageSize) {
+    public ProcessInstanceList getProcessInstancesByProcessId(String processId, List<Integer> status, String initiator, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
     @RedirectIndex(containerId=0)
-    public ProcessInstanceList getProcessInstancesByDeploymentId(String containerId, List<Integer> status, Integer page, Integer pageSize) {
+    public ProcessInstanceList getProcessInstancesByDeploymentId(String containerId, List<Integer> status, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
     @RedirectIndex(correlationKey=0)
-    public ProcessInstanceList getProcessInstancesByCorrelationKey(String correlationKey, Integer page, Integer pageSize) {
+    public ProcessInstanceList getProcessInstancesByCorrelationKey(String correlationKey, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
@@ -67,7 +67,7 @@ public class QueryService extends RuntimeDataServiceBase {
     }
 
     @Override
-    public ProcessInstanceList getProcessInstanceByVariables(String variableName, String variableValue, List<Integer> status, Integer page, Integer pageSize) {
+    public ProcessInstanceList getProcessInstanceByVariables(String variableName, String variableValue, List<Integer> status, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
@@ -77,7 +77,7 @@ public class QueryService extends RuntimeDataServiceBase {
         return null;
     }
 
-    //@Override exists in 6.4.0 but not 6.3.0
+    @Override
     @RedirectIndex(processInstanceId=0)
     public ProcessInstance getProcessInstanceById(long processInstanceId, boolean withVars) {
         return null;
@@ -109,12 +109,12 @@ public class QueryService extends RuntimeDataServiceBase {
 
     @Override
     @RedirectIndex(containerId=0)
-    public ProcessDefinitionList getProcessesByDeploymentId(String containerId, Integer page, Integer pageSize) {
+    public ProcessDefinitionList getProcessesByDeploymentId(String containerId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
-    public ProcessDefinitionList getProcessesByFilter(String filter, Integer page, Integer pageSize) {
+    public ProcessDefinitionList getProcessesByFilter(String filter, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
@@ -142,39 +142,39 @@ public class QueryService extends RuntimeDataServiceBase {
     }
 
     @Override
-    public TaskSummaryList getTasksAssignedAsBusinessAdministratorByStatus(List<String> status, String userId, Integer page, Integer pageSize) {
+    public TaskSummaryList getTasksAssignedAsBusinessAdministratorByStatus(List<String> status, String userId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
-    public TaskSummaryList getTasksAssignedAsPotentialOwner(List<String> status, List<String> groupIds, String userId, Integer page, Integer pageSize) {
+    public TaskSummaryList getTasksAssignedAsPotentialOwner(List<String> status, List<String> groupIds, String userId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
-    public TaskSummaryList getTasksOwnedByStatus(List<String> status, String userId, Integer page, Integer pageSize) {
+    public TaskSummaryList getTasksOwnedByStatus(List<String> status, String userId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
     @RedirectIndex(processInstanceId=0)
-    public TaskSummaryList getTasksByStatusByProcessInstanceId(Number processInstanceId, List<String> status, Integer page, Integer pageSize) {
+    public TaskSummaryList getTasksByStatusByProcessInstanceId(Number processInstanceId, List<String> status, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
-    public TaskSummaryList getAllAuditTask(String userId, Integer page, Integer pageSize) {
+    public TaskSummaryList getAllAuditTask(String userId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
     @Override
     @RedirectIndex(taskInstanceId=0)
-    public TaskEventInstanceList getTaskEvents(long taskId, Integer page, Integer pageSize) {
+    public TaskEventInstanceList getTaskEvents(long taskId, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 
-    //@Override exists in 6.4.0 but not 6.3.0
-    public TaskSummaryList getTasksByVariables(String userId, String variableName, String variableValue, List<String> status, Integer page, Integer pageSize) {
+    @Override
+    public TaskSummaryList getTasksByVariables(String userId, String variableName, String variableValue, List<String> status, Integer page, Integer pageSize, String sort, boolean sortOrder) {
         return null;
     }
 

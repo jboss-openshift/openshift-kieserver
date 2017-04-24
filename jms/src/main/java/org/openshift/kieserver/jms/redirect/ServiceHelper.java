@@ -22,6 +22,7 @@ import java.util.TreeMap;
 import org.kie.server.api.commands.DescriptorCommand;
 import org.openshift.kieserver.jms.redirect.services.DefinitionService;
 import org.openshift.kieserver.jms.redirect.services.JobService;
+import org.openshift.kieserver.jms.redirect.services.ProcessAdminService;
 import org.openshift.kieserver.jms.redirect.services.ProcessService;
 import org.openshift.kieserver.jms.redirect.services.QueryService;
 import org.openshift.kieserver.jms.redirect.services.UserTaskService;
@@ -32,11 +33,13 @@ public final class ServiceHelper {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceHelper.class);
 
-    private static final Class<?>[] SERVICES = new Class<?>[] {
+    static final Class<?>[] SERVICES = new Class<?>[] {
+        // These names have to match the service names in JBPMKieContainerCommandServiceImpl.executeScript
         DefinitionService.class,
         JobService.class,
+        ProcessAdminService.class,
         ProcessService.class,
-        //QueryDataService.class, exists in 6.4.0 but not 6.3.0
+        //QueryDataService.class, (unnecessary to override as no method signatures are annotate-able by RedirectIndex)
         QueryService.class,
         UserTaskService.class
     };

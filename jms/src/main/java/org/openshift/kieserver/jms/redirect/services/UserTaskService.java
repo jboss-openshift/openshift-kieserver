@@ -42,7 +42,7 @@ public class UserTaskService extends UserTaskServiceBase {
     public void complete(String containerId, Number taskId, String userId, String payload, String marshallerType) {
     }
 
-    //@Override exists in 6.4.0 but not 6.3.0
+    @Override
     @RedirectIndex(containerId=0, taskInstanceId=1)
     public void completeAutoProgress(String containerId, Number taskId, String userId, String payload, String marshallerType) {
     }

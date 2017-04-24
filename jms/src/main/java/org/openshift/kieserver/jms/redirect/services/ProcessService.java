@@ -79,12 +79,12 @@ public class ProcessService extends ProcessServiceBase {
     public void signalProcessInstances(String containerId, List<Long> processInstanceIds, String signalName, String eventPayload, String marshallingType) {
     }
 
-    //@Override exists in 6.4.0 but not 6.3.0
+    @Override
     @RedirectIndex(containerId=0)
     public void signal(String containerId, String signalName, String marshallingType) {
     }
 
-    //@Override exists in 6.4.0 but not 6.3.0
+    @Override
     @RedirectIndex(containerId=0)
     public void signal(String containerId, String signalName, String eventPayload, String marshallingType) {
     }
