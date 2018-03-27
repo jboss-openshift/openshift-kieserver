@@ -37,10 +37,10 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.PathSegment;
 import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriInfo;
 
 import org.jboss.resteasy.plugins.server.servlet.ServletUtil;
 import org.jboss.resteasy.specimpl.PathSegmentImpl;
-import org.jboss.resteasy.specimpl.UriInfoImpl;
 import org.kie.server.api.KieServerEnvironment;
 import org.kie.server.api.rest.RestURI;
 import org.kie.server.remote.rest.common.KieServerApplication;
@@ -59,7 +59,7 @@ public final class PathPattern {
     private static final Logger LOGGER = LoggerFactory.getLogger(PathPattern.class);
 
     private static final Class<?>[] JAXRS_METHODS = new Class<?>[] {
-        DELETE.class, GET.class, HEAD.class, OPTIONS.class, POST.class, PUT.class
+            DELETE.class, GET.class, HEAD.class, OPTIONS.class, POST.class, PUT.class
     };
     private static final String NUM_EXPR = "[0-9]+";
     private static final String ANY_EXPR = "[^/]+";
@@ -113,7 +113,7 @@ public final class PathPattern {
     public Map<String, String> getVariables(HttpServletRequest request) {
         Map<String, String> reqVars = new LinkedHashMap<String, String>();
         if (matches(request)) {
-            UriInfoImpl uriInfo = ServletUtil.extractUriInfo(request, request.getServletPath());
+            UriInfo uriInfo = ServletUtil.extractUriInfo(request, request.getServletPath());
             List<PathSegment> reqSegs = uriInfo.getPathSegments();
             for (int i=0; i < reqSegs.size(); i++) {
                 String var = positions.get(i);
