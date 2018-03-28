@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.kie</groupId>
         <artifactId>kie-parent-with-dependencies</artifactId>
-        <version>6.5.0.Final-redhat-7</version>
+        <version>6.5.0.Final-redhat-21</version>
     </parent>
 
     <groupId>org.openshift.kieserver</groupId>
