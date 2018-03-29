@@ -46,6 +46,10 @@
         </license>
     </licenses>
 
+    <properties>
+        <version.org.jboss.bom>7.0.9.GA</version.org.jboss.bom>
+    </properties>
+
     <modules>
         <module>common</module>
         <module>jms</module>
@@ -68,10 +72,23 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>org.jboss.bom</groupId>
+                <artifactId>eap-runtime-artifacts</artifactId>
+                <version>${version.org.jboss.bom}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.openshift.kieserver</groupId>
                 <artifactId>openshift-kieserver-common</artifactId>
                 <scope>provided</scope>
                 <version>${project.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.jboss.resteasy</groupId>
+                        <artifactId>resteasy-jaxrs</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
     </dependencyManagement>
