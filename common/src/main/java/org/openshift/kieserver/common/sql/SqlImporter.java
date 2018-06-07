@@ -16,23 +16,19 @@
 
 package org.openshift.kieserver.common.sql;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.logging.Logger;
-
 import javax.annotation.PostConstruct;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.sql.*;
+import java.util.logging.Logger;
 
 /**
  * @author fspolti
@@ -42,15 +38,16 @@ import javax.sql.DataSource;
 @Startup
 public class SqlImporter {
 
+    private final Logger log = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
     private final String LINE_SEPARATOR = System.getProperty("line.separator", "\n");
     private final String DEFAULT_COMMAND_DELIMITER = ";";
     private final String QUARTZ_JNDI = System.getenv("QUARTZ_JNDI");
-    private Logger log = Logger.getLogger(SqlImporter.class.getName());
+    // use the DEFAULT if none is passed, it will be overridden on getDatabaseType, if needed.
+    private String CUSTOM_COMMAND_DELIMITER = DEFAULT_COMMAND_DELIMITER;
     private DataSource ds;
     private Context ctx;
     private String DB_TYPE = null;
-    private String DB_SERVICE_PREFIX = System.getenv("DB_SERVICE_PREFIX_MAPPING");
-    private String SQL_SCRIPT = System.getProperty("jboss.home.dir") + "/bin";
+    private String SQL_SCRIPT = System.getProperty("jboss.home.dir") + "/bin/";
 
     @PostConstruct
     public void importSqlFile() throws SQLException {
@@ -66,10 +63,11 @@ public class SqlImporter {
         }
     }
 
-    /*
-    * Prepare the needed variables and then call the scriptImporter to start the import task.
-    * @throws SQLException for SQL related issues and Exception for any other issue
-    */
+    /**
+     * Prepare the needed variables and then call the scriptImporter to start the import task.
+     *
+     * @throws SQLException for SQL related issues and Exception for any other issue
+     */
     private void doImport() throws SQLException {
 
         Connection conn = getConnection();
@@ -92,10 +90,11 @@ public class SqlImporter {
         }
     }
 
-    /*
-    * Import the script
-    * @throws SQLException for SQL related issues and Exception for any other issue
-    */
+    /**
+     * Import the script
+     *
+     * @throws SQLException for SQL related issues and Exception for any other issue
+     */
     private void scriptImporter(Connection conn) throws IOException, SQLException {
 
         if (new File(SQL_SCRIPT).exists()) {
@@ -114,12 +113,17 @@ public class SqlImporter {
                     if (isComment(trimmedCommand)) {
                         log.info(trimmedCommand);
                     } else if (commandIsReady(trimmedCommand)) {
-                        command.append(line.substring(0, line.lastIndexOf(DEFAULT_COMMAND_DELIMITER)));
+                        try {
+                            command.append(line.substring(0, line.lastIndexOf(CUSTOM_COMMAND_DELIMITER)));
+                        } catch (StringIndexOutOfBoundsException e ) {
+                            // In SQL SERVER quartz script, there are two delimiters, GO and the default ";", if the first fails, rely on the DEFAULT DELIMITER
+                            command.append(line.substring(0, line.lastIndexOf(DEFAULT_COMMAND_DELIMITER)));
+                        }
                         command.append(LINE_SEPARATOR);
                         log.info("command to execute: \n" + command);
 
                         //execute sql
-                        stm.execute(String.valueOf(command+";"));
+                        stm.execute(String.valueOf(command));
                         conn.commit();
 
                         //clear the previous command
@@ -129,10 +133,9 @@ public class SqlImporter {
                         command.append(LINE_SEPARATOR);
                     }
                 }
-
             } catch (Exception e) {
-                log.severe("Error during import script execution. Error message: " + e.getMessage());
                 conn.rollback();
+                throw new SQLException("Error during import script execution. Error message: " + e.getMessage());
             } finally {
                 reader.close();
                 stm.close();
@@ -140,48 +143,53 @@ public class SqlImporter {
         } else {
             log.warning("File " + SQL_SCRIPT + " Not found, aborting.");
         }
-
     }
 
-    /*
-    * Verifies if the given line from script is a comment or not
-    * @returns true if the line is a comment and false if is nit a comment.
-    */
+    /**
+     * Verifies if the given line from script is a comment or not
+     *
+     * @returns true if the line is a comment and false if is nit a comment.
+     */
     private boolean isComment(String trimmedLine) {
         return trimmedLine.startsWith("//") || trimmedLine.startsWith("--");
     }
 
-    /*
-    * Verifies if the entire command line is ready to be executed.
-    * @returns true when the COMMAND_DELIMITER is found or false if the delimiter is not found.
-    */
+    /**
+     * Verifies if the entire command line is ready to be executed.
+     *
+     * @returns true when the COMMAND_DELIMITER is found or false if the delimiter is not found.
+     */
     private boolean commandIsReady(String trimmedCommand) {
-        return trimmedCommand.endsWith(DEFAULT_COMMAND_DELIMITER) || trimmedCommand.equals(DEFAULT_COMMAND_DELIMITER);
+        return (trimmedCommand.endsWith(DEFAULT_COMMAND_DELIMITER) || trimmedCommand.equals(DEFAULT_COMMAND_DELIMITER)) ||
+                (trimmedCommand.endsWith(CUSTOM_COMMAND_DELIMITER) || trimmedCommand.equals(CUSTOM_COMMAND_DELIMITER));
     }
 
 
-    /*
-    * Verifies if the Quartz Tables already exists
-    * @returns true or false
-    * @params SqlConnection
-    * @throws SQLException for SQL related issues and Exception for any other issue
-    */
+    /**
+     * Verifies if the Quartz Tables already exists
+     *
+     * @throws SQLException for SQL related issues and Exception for any other issue
+     * @returns true or false
+     * @params SqlConnection
+     */
     public boolean tablesExists(Connection conn) throws SQLException {
 
+        String tableName = DB_TYPE.equals("POSTGRESQL") ? "qrtz_job_details" : "QRTZ_JOB_DETAILS";
+
         DatabaseMetaData md = conn.getMetaData();
-        ResultSet table = md.getTables(null, null, DB_TYPE.equals("MYSQL") ? "QRTZ_JOB_DETAILS" : "qrtz_job_details", null);
+        ResultSet table = md.getTables(null, null, tableName, null);
 
         if (table.next()) {
             return true;
         }
         return false;
-
     }
 
-    /*
-    * Returns the SQL connection
-    * @throws SQLException for SQL related issues and Exception for any other issue
-    */
+    /**
+     * Returns the SQL connection
+     *
+     * @throws SQLException for SQL related issues and Exception for any other issue
+     */
     private Connection getConnection() throws SQLException {
         try {
             ctx = new InitialContext();
@@ -192,17 +200,35 @@ public class SqlImporter {
         return ds.getConnection();
     }
 
-    /*
-    * Set the database type for MYSQL or POSTGRESQL
-    */
+    /**
+     * Sets the database type and defines the quartz sql file name.
+     * The Database type will be exported by the kieserver-setup.sh
+     */
     private void getDatabaseType() {
 
-        if (null != DB_SERVICE_PREFIX && DB_SERVICE_PREFIX.toUpperCase().contains("MYSQL")) {
-            DB_TYPE = "MYSQL";
-            SQL_SCRIPT += "/quartz_tables_mysql.sql";
-        } else if (null != DB_SERVICE_PREFIX && DB_SERVICE_PREFIX.toUpperCase().contains("POSTGRESQL")) {
-            DB_TYPE = "POSTGRESQL";
-            SQL_SCRIPT += "/quartz_tables_postgres.sql";
+        DB_TYPE = System.getProperty("org.openshift.kieserver.common.sql.dbtype").toUpperCase();
+
+        if (null == DB_TYPE || DB_TYPE.isEmpty()) {
+            log.warning("Property org.openshift.kieserver.common.sql.dbtype not set, sqlImporter will not run properly");
+        } else {
+            switch (DB_TYPE) {
+                case "MYSQL":
+                    SQL_SCRIPT += "quartz_tables_mysql.sql";
+                    break;
+                case "POSTGRESQL":
+                    SQL_SCRIPT += "quartz_tables_postgres.sql";
+                    break;
+                case "ORACLE":
+                    SQL_SCRIPT += "quartz_tables_oracle.sql";
+                    break;
+                case "SQLSERVER":
+                    SQL_SCRIPT += "quartz_tables_sqlserver.sql";
+                    CUSTOM_COMMAND_DELIMITER="GO";
+                    break;
+                case "DB2":
+                    SQL_SCRIPT += "quartz_tables_db2.sql";
+                    break;
+            }
         }
     }
 }
