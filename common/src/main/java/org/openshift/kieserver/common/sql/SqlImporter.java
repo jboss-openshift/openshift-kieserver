@@ -56,7 +56,7 @@ public class SqlImporter {
             log.info("QUARTZ_JNDI env not found, skipping SqlImporter");
         } else {
             getDatabaseType();
-            if (null != DB_TYPE) {
+            if (!isEmptyOrNull(DB_TYPE)) {
                 log.info("Starting SqlImporter...");
                 doImport();
             }
@@ -64,7 +64,7 @@ public class SqlImporter {
     }
 
     /**
-     * Prepare the needed variables and then call the scriptImporter to start the import task.
+     * Verifies if the importer needs to run, if needed, start the import task.
      *
      * @throws SQLException for SQL related issues and Exception for any other issue
      */
@@ -84,7 +84,6 @@ public class SqlImporter {
 
         } catch (Exception e) {
             log.severe("Failed to import the script " + SQL_SCRIPT + ", error message: " + e.getMessage());
-
         } finally {
             conn.close();
         }
@@ -206,11 +205,12 @@ public class SqlImporter {
      */
     private void getDatabaseType() {
 
-        DB_TYPE = System.getProperty("org.openshift.kieserver.common.sql.dbtype").toUpperCase();
+        DB_TYPE = System.getProperty("org.openshift.kieserver.common.sql.dbtype");
 
-        if (null == DB_TYPE || DB_TYPE.isEmpty()) {
+        if (isEmptyOrNull(DB_TYPE)) {
             log.warning("Property org.openshift.kieserver.common.sql.dbtype not set, sqlImporter will not run properly");
         } else {
+            DB_TYPE = DB_TYPE.toUpperCase();
             switch (DB_TYPE) {
                 case "MYSQL":
                     SQL_SCRIPT += "quartz_tables_mysql.sql";
@@ -230,5 +230,10 @@ public class SqlImporter {
                     break;
             }
         }
+    }
+
+    private boolean isEmptyOrNull(String str) {
+        if (null == str || str.trim().length() == 0) return true;
+        else return false;
     }
 }
