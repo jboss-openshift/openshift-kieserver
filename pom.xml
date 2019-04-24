@@ -79,7 +79,7 @@
     <repositories>
         <repository>
             <id>redhat-ga-repository</id>
-            <url>http://maven.repository.redhat.com/ga/</url>
+            <url>https://maven.repository.redhat.com/ga/</url>
             <releases>
                 <enabled>true</enabled>
                 <updatePolicy>never</updatePolicy>
@@ -91,7 +91,7 @@
         </repository>
         <repository>
             <id>redhat-ea-repository</id>
-            <url>http://maven.repository.redhat.com/earlyaccess/all/</url>
+            <url>https://maven.repository.redhat.com/earlyaccess/all/</url>
             <releases>
                 <enabled>true</enabled>
                 <updatePolicy>never</updatePolicy>
@@ -103,7 +103,7 @@
           </repository>
         <repository>
             <id>redhat-tp-repository</id>
-            <url>http://maven.repository.redhat.com/techpreview/all</url>
+            <url>https://maven.repository.redhat.com/techpreview/all</url>
             <layout>default</layout>
             <releases>
                 <enabled>true</enabled>
@@ -119,7 +119,7 @@
     <pluginRepositories>
         <pluginRepository>
             <id>redhat-ga-plugin-repository</id>
-            <url>http://maven.repository.redhat.com/ga/</url>
+            <url>https://maven.repository.redhat.com/ga/</url>
             <releases>
                 <enabled>true</enabled>
                 <updatePolicy>never</updatePolicy>
@@ -131,7 +131,7 @@
         </pluginRepository>
         <pluginRepository>
             <id>redhat-ea-plugin-repository</id>
-            <url>http://maven.repository.redhat.com/earlyaccess/all/</url>
+            <url>https://maven.repository.redhat.com/earlyaccess/all/</url>
             <releases>
                 <enabled>true</enabled>
                 <updatePolicy>never</updatePolicy>
@@ -143,7 +143,7 @@
         </pluginRepository>
         <pluginRepository>
             <id>redhat-tp-plugin-repository</id>
-            <url>http://maven.repository.redhat.com/techpreview/all</url>
+            <url>https://maven.repository.redhat.com/techpreview/all</url>
             <layout>default</layout>
             <releases>
                 <enabled>true</enabled>
